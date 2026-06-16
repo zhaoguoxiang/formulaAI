@@ -1,0 +1,71 @@
+# ═══ Environment ═══
+.env
+.env.local
+.env.*.local
+
+# ═══ Dependencies ═══
+node_modules/
+
+# ═══ Build output ═══
+dist/
+/tmp
+/out-tsc
+/bazel-out
+
+# ═══ Go ═══
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+backend/server
+frontend/server
+
+# ═══ IDE & Editors ═══
+.idea/
+.vscode/
+.history/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# ═══ OS ═══
+.DS_Store
+Thumbs.db
+
+# ═══ Docker ═══
+pgdata/
+
+# ═══ Angular ═══
+.angular/cache/
+
+# ═══ Sass ═══
+.sass-cache/
+
+# ═══ Logs ═══
+*.log
+npm-debug.log
+yarn-error.log
+testem.log
+
+# ═══ Coverage & Test ═══
+coverage/
+__screenshots__/
+
+# ═══ Misc ═══
+/connect.lock
+/libpeerconnection.log
+/typings
+
+# ═══ Agent working files ═══
+.omo/drafts/
+.omo/evidence/
+.omo/notepads/

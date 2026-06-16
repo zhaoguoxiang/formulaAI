@@ -1,0 +1,105 @@
+/* ═══════════════════════════════════════════════
+   Formula Analysis Dashboard — M3 Styling
+   ═══════════════════════════════════════════════ */
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* ── Dashboard Container ── */
+.analysis-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-spacing-md, 16px);
+  padding: var(--app-spacing-xs, 4px) 0;
+}
+
+/* ── Chart Row Grid ── */
+.chart-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--app-spacing-md, 16px);
+}
+
+/* ── Chart Card ── */
+.chart-card {
+  box-shadow: none;
+}
+
+.chart-card mat-card-content.chart-body {
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* ── Card Icon ── */
+.card-icon {
+  margin-right: var(--app-spacing-sm, 8px);
+  color: var(--mat-sys-primary, #6750A4);
+  vertical-align: middle;
+}
+
+/* ── Chart Canvas ── */
+.chart-canvas {
+  max-height: 320px;
+  width: 100%;
+}
+
+/* ── State Indicators ── */
+.state-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--app-spacing-sm, 8px);
+  padding: var(--app-spacing-xl, 32px);
+  color: var(--mat-sys-on-surface-variant, #49454F);
+}
+
+.state-error {
+  color: var(--mat-sys-error, #B3261E);
+}
+
+.state-empty {
+  opacity: 0.7;
+}
+
+/* ── Dosing Methods Table ── */
+.table-body {
+  padding: 0;
+}
+
+.dosing-table {
+  width: 100%;
+}
+
+.dosing-table th {
+  font: var(--mat-sys-label-large-size, 0.875rem) / var(--mat-sys-label-large-line-height, 1.25rem);
+  font-weight: 500;
+  color: var(--mat-sys-on-surface-variant, #49454F);
+  height: 48px;
+}
+
+.dosing-table td {
+  font: var(--mat-sys-body-medium-size, 0.875rem);
+  font-size: var(--mat-sys-body-medium-size, 0.875rem);
+  border-bottom: 1px solid var(--mat-sys-outline-variant, #CAC4D0);
+}
+
+/* ── Count Badge ── */
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  border-radius: var(--mat-sys-shape-corner-full, 9999px);
+  background: var(--mat-sys-primary-container, #EADDFF);
+  color: var(--mat-sys-on-primary-container, #21005D);
+  font-size: var(--mat-sys-label-medium-size, 0.75rem);
+  font-weight: 500;
+}

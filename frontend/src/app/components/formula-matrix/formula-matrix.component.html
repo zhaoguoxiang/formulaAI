@@ -1,0 +1,231 @@
+<!-- ── Formula Matrix Tab ── -->
+<div class="matrix-root">
+
+  <!-- ═══ Filter Toolbar ═══ -->
+  <div class="matrix-toolbar">
+    <mat-button-toggle-group
+      class="mode-toggle-group"
+      [value]="selectedMode"
+      (change)="onModeFilterChange($event)"
+      aria-label="按组分模式筛选"
+      hideSingleSelectionIndicator="true">
+      <mat-button-toggle
+        *ngFor="let opt of modeOptions"
+        [value]="opt.value"
+        class="mode-toggle">
+        <mat-icon class="toggle-icon">
+          {{ opt.value === '' ? 'view_list' : opt.value === 'single' ? 'looks_one' : 'looks_two' }}
+        </mat-icon>
+        <span>{{ opt.label }}</span>
+      </mat-button-toggle>
+    </mat-button-toggle-group>
+
+    <span class="toolbar-count" *ngIf="!loading && !error">
+      共 <strong>{{ dataSource.data.length }}</strong> 条配方
+    </span>
+  </div>
+
+  <!-- ═══ Loading State ═══ -->
+  <div class="state-container" *ngIf="loading">
+    <mat-spinner diameter="40" color="primary"></mat-spinner>
+    <p class="state-text">正在加载配方数据…</p>
+  </div>
+
+  <!-- ═══ Error State ═══ -->
+  <div class="state-container state-error" *ngIf="error && !loading">
+    <div class="state-icon-wrapper error-icon-wrapper">
+      <mat-icon class="state-icon">error_outline</mat-icon>
+    </div>
+    <p class="state-text error-text">{{ error }}</p>
+    <button mat-stroked-button color="warn" (click)="loadMatrix()">
+      <mat-icon>refresh</mat-icon>
+      重试
+    </button>
+  </div>
+
+  <!-- ═══ Empty State ═══ -->
+  <div class="state-container state-empty" *ngIf="!loading && !error && dataSource.data.length === 0">
+    <div class="state-icon-wrapper empty-icon-wrapper">
+      <mat-icon class="state-icon">inventory_2</mat-icon>
+    </div>
+    <p class="state-text">暂无配方数据</p>
+    <p class="state-hint">创建配方后将在此处以交叉表形式展示</p>
+  </div>
+
+  <!-- ═══ Data Table ═══ -->
+  <mat-card
+    class="table-card"
+    *ngIf="!loading && !error && dataSource.data.length > 0">
+
+    <table
+      mat-table
+      [dataSource]="dataSource"
+      multiTemplateDataRows
+      class="matrix-table"
+      aria-label="配方矩阵表格">
+
+      <!-- ── Column: Expand ── -->
+      <ng-container matColumnDef="expand">
+        <th mat-header-cell *matHeaderCellDef class="col-expand">&nbsp;</th>
+        <td mat-cell *matCellDef="let element" class="col-expand">
+          <button
+            mat-icon-button
+            class="expand-btn"
+            (click)="$event.stopPropagation(); toggleRow(element)"
+            [attr.aria-label]="isExpanded(element) ? '折叠' + element.name : '展开' + element.name"
+            [matTooltip]="isExpanded(element) ? '折叠详情' : '展开详情'">
+            <mat-icon class="expand-icon">
+              {{ isExpanded(element) ? 'expand_less' : 'expand_more' }}
+            </mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <!-- ── Column: Code ── -->
+      <ng-container matColumnDef="code">
+        <th mat-header-cell *matHeaderCellDef class="col-code">编码</th>
+        <td mat-cell *matCellDef="let element" class="col-code">
+          <code class="code-mono">{{ element.code }}</code>
+        </td>
+      </ng-container>
+
+      <!-- ── Column: Name ── -->
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef class="col-name">配方名称</th>
+        <td mat-cell *matCellDef="let element" class="col-name">
+          <span class="formula-name">{{ element.name }}</span>
+        </td>
+      </ng-container>
+
+      <!-- ── Column: Component Mode ── -->
+      <ng-container matColumnDef="component_mode">
+        <th mat-header-cell *matHeaderCellDef class="col-mode">组分模式</th>
+        <td mat-cell *matCellDef="let element" class="col-mode">
+          <span class="mode-chip" [ngClass]="getModeClass(element.component_mode)">
+            {{ getModeLabel(element.component_mode) }}
+          </span>
+        </td>
+      </ng-container>
+
+      <!-- ── Column: Parts Count ── -->
+      <ng-container matColumnDef="parts_count">
+        <th mat-header-cell *matHeaderCellDef class="col-count">组分数</th>
+        <td mat-cell *matCellDef="let element" class="col-count">
+          <span class="count-badge">{{ element.parts?.length ?? 0 }}</span>
+        </td>
+      </ng-container>
+
+      <!-- ── Column: Steps Count ── -->
+      <ng-container matColumnDef="steps_count">
+        <th mat-header-cell *matHeaderCellDef class="col-count">步骤数</th>
+        <td mat-cell *matCellDef="let element" class="col-count">
+          <span class="count-badge count-steps">{{ element.steps?.length ?? 0 }}</span>
+        </td>
+      </ng-container>
+
+      <!-- ── Column: Status ── -->
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef class="col-status">状态</th>
+        <td mat-cell *matCellDef="let element" class="col-status">
+          <span
+            class="status-chip"
+            [class.status-draft]="element.status === 'draft'"
+            [class.status-active]="element.status === 'active'"
+            [class.status-archived]="element.status === 'archived'">
+            <span class="status-dot-inner"></span>
+            {{ getStatusLabel(element.status) }}
+          </span>
+        </td>
+      </ng-container>
+
+      <!-- ── Expanded Detail Column ── -->
+      <ng-container matColumnDef="expandedDetail">
+        <td
+          mat-cell
+          *matCellDef="let element"
+          [attr.colspan]="displayedColumns.length"
+          class="detail-cell">
+          <div
+            class="detail-wrapper"
+            [@detailExpand]="isExpanded(element) ? 'expanded' : 'collapsed'">
+            <div class="detail-inner" *ngIf="isExpanded(element)">
+              <!-- Part sections -->
+              <div
+                class="part-section"
+                *ngFor="let part of element.parts; last as isLast">
+
+                <!-- Part header -->
+                <div class="part-header">
+                  <span class="part-badge" [ngClass]="getPartNameClass(part.name)">
+                    {{ getPartNameLabel(part.name) }}
+                  </span>
+                  <span class="part-mix-ratio">
+                    配比 <strong>{{ part.mix_ratio }}%</strong>
+                  </span>
+                </div>
+
+                <!-- Ingredients sub-table -->
+                <div class="ingredient-list" *ngIf="part.ingredients?.length; else noIngredients">
+                  <div class="ingredient-header">
+                    <span class="ing-col-material">配料名称</span>
+                    <span class="ing-col-percent">占比 (%)</span>
+                    <span class="ing-col-weight">重量</span>
+                  </div>
+                  <div
+                    class="ingredient-row"
+                    *ngFor="let ing of part.ingredients; let i = index">
+                    <span class="ing-col-index">{{ i + 1 }}</span>
+                    <span class="ing-col-material">{{ ing.material }}</span>
+                    <span class="ing-col-percent">
+                      <span class="pct-bar" [style.width.%]="ing.percentage"></span>
+                      <span class="pct-value">{{ ing.percentage }}%</span>
+                    </span>
+                    <span class="ing-col-weight">{{ ing.weight > 0 ? (ing.weight | number:'1.0-2') : '—' }}</span>
+                  </div>
+                </div>
+                <ng-template #noIngredients>
+                  <p class="no-data-hint">该组分暂无配料</p>
+                </ng-template>
+
+                <mat-divider *ngIf="!isLast" class="part-divider"></mat-divider>
+              </div>
+
+              <!-- Steps summary section -->
+              <div class="steps-summary" *ngIf="element.steps?.length">
+                <div class="steps-header">
+                  <mat-icon class="steps-icon">account_tree</mat-icon>
+                  <span>工艺步骤 ({{ element.steps.length }})</span>
+                </div>
+                <div class="steps-list">
+                  <span
+                    class="step-chip"
+                    *ngFor="let step of element.steps"
+                    [matTooltip]="'温度: ' + step.temperature + ' | 时长: ' + step.duration">
+                    {{ step.step_no }}. {{ step.name }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </ng-container>
+
+      <!-- ── Rows ── -->
+      <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true" class="header-row"></tr>
+      <tr
+        mat-row
+        *matRowDef="let row; columns: displayedColumns"
+        class="formula-row"
+        [class.row-expanded]="isExpanded(row)"
+        (click)="toggleRow(row)">
+      </tr>
+      <tr
+        mat-row
+        *matRowDef="let row; columns: ['expandedDetail']"
+        class="detail-row"
+        [class.detail-expanded]="isExpanded(row)">
+      </tr>
+    </table>
+  </mat-card>
+
+</div>

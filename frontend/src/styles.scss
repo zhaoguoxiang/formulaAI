@@ -1,0 +1,219 @@
+/* ═══ FormulAI — Material Design 3 Token Foundation ═══ */
+
+@use '@angular/material' as mat;
+
+/* ── M3 Custom Color Palette ──
+   Angular Material M3 palettes are plain SASS maps with nested sub-palettes.
+   Primary palette includes secondary, neutral, neutral-variant, and error as nested keys.
+   See angular/material/core/theming/_palettes.scss for the structure. */
+
+$formulai-palette: (
+  /* Primary tones — purple (#6750A4 seed) */
+  0:   #000000,
+  10:  #21005D,
+  20:  #381E72,
+  25:  #4A238B,
+  30:  #4F378B,
+  35:  #5B4297,
+  40:  #6750A4,
+  50:  #7F67BE,
+  60:  #9A82DB,
+  70:  #B69DF8,
+  80:  #D0BCFF,
+  90:  #EADDFF,
+  95:  #F6EDFF,
+  98:  #FFF7FF,
+  99:  #FFFBFF,
+  100: #FFFFFF,
+
+  /* Secondary tones — muted purple (#625B71 seed) */
+  secondary: (
+    0:   #000000,
+    10:  #1D192B,
+    20:  #332D41,
+    25:  #3E384C,
+    30:  #4A4458,
+    35:  #564F64,
+    40:  #625B71,
+    50:  #7A7489,
+    60:  #958DA4,
+    70:  #B0A7BF,
+    80:  #CCC2DB,
+    90:  #E8DEF8,
+    95:  #F6EDFF,
+    98:  #FFF7FF,
+    99:  #FFFBFF,
+    100: #FFFFFF,
+  ),
+
+  /* Neutral tones — warm gray (#605D62 seed)
+     Includes intermediate tones (4,6,12,17,22,24,87,92,94,96)
+     required by M3 for surface-container hierarchy computation. */
+  neutral: (
+    0:   #000000,
+    4:   #0F0D11,
+    6:   #151316,
+    10:  #1D1B1E,
+    12:  #211F22,
+    17:  #2B292D,
+    20:  #313033,
+    22:  #363437,
+    24:  #3B383C,
+    25:  #3D3B3E,
+    30:  #484649,
+    35:  #545255,
+    40:  #605D62,
+    50:  #79767A,
+    60:  #939094,
+    70:  #AEAAAE,
+    80:  #CAC5CA,
+    87:  #DED8DD,
+    90:  #E6E1E5,
+    92:  #EDE6EB,
+    94:  #F2ECF1,
+    95:  #F4EFF4,
+    96:  #F8F2F6,
+    98:  #FDF8FD,
+    99:  #FFFBFF,
+    100: #FFFFFF,
+  ),
+
+  /* Neutral-variant tones — gray-purple (#605D66 seed) */
+  neutral-variant: (
+    0:   #000000,
+    10:  #1D1A22,
+    20:  #322F37,
+    25:  #3D3A42,
+    30:  #49454E,
+    35:  #54505A,
+    40:  #605D66,
+    50:  #79757F,
+    60:  #938F99,
+    70:  #AEA9B4,
+    80:  #CAC4CF,
+    90:  #E6E0EB,
+    95:  #F5EEFA,
+    98:  #FDF7FF,
+    99:  #FFFBFF,
+    100: #FFFFFF,
+  ),
+
+  /* Error tones — standard M3 error red */
+  error: (
+    0:   #000000,
+    10:  #410002,
+    20:  #690005,
+    25:  #7e0007,
+    30:  #93000a,
+    35:  #a80710,
+    40:  #ba1a1a,
+    50:  #de3730,
+    60:  #ff5449,
+    70:  #ff897d,
+    80:  #ffb4ab,
+    90:  #ffdad6,
+    95:  #ffedea,
+    98:  #fff8f7,
+    99:  #fffbff,
+    100: #ffffff,
+  ),
+);
+
+/* ── M3 Theme ──
+   Generates all --mat-sys-*, --mat-sys-typescale-*,
+   --mat-sys-shape-*, --mat-sys-elevation-*, --mat-sys-motion-*,
+   and --mat-sys-state-* CSS custom properties. */
+
+@include mat.theme((
+  color: (
+    primary: $formulai-palette,
+    tertiary: mat.$rose-palette,
+  ),
+  typography: 'DM Sans, Roboto, sans-serif',
+  density: 0,
+));
+
+/* ── M3 System Utility Classes ──
+   Enables .mat-primary, .mat-secondary, .mat-tertiary,
+   .mat-error, .mat-surface, etc. on any element. */
+@include mat.system-classes();
+
+/* ═══ App-Level Spacing Tokens (M3 8dp Grid) ═══ */
+:root {
+  --app-spacing-xs:  4px;
+  --app-spacing-sm:  8px;
+  --app-spacing-md:  16px;
+  --app-spacing-lg:  24px;
+  --app-spacing-xl:  32px;
+  --app-spacing-2xl: 48px;
+  --app-spacing-3xl: 64px;
+}
+
+/* ═══ Global Reset & Base ═══ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  color-scheme: light dark;
+}
+
+body {
+  min-height: 100dvh;
+  overflow: hidden;
+  font-family: var(--mat-sys-body-medium-font, 'DM Sans', Roboto, sans-serif);
+  background: var(--mat-sys-surface, #FEF7FF);
+  color: var(--mat-sys-on-surface, #1D1B20);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ═══ Scrollbar — M3 Styled ═══ */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--mat-sys-outline-variant, #CAC4D0);
+  border-radius: var(--mat-sys-shape-corner-full, 9999px);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mat-sys-outline, #79747E);
+}
+
+
+
+/* ═══ Angular Material Overrides ═══ */
+
+/* Tab body content — scroll when overflow */
+.mat-mdc-tab-body-content {
+  overflow-y: auto !important;
+}
+
+.mat-mdc-tab-body-wrapper {
+  overflow: hidden;
+}
+
+/* Card content full-height for flex layouts */
+mat-card {
+  display: flex;
+  flex-direction: column;
+}
+
+mat-card-content {
+  flex: 1;
+  min-height: 0;
+}

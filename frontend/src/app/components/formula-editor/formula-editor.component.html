@@ -1,0 +1,413 @@
+<!-- ── Loading Overlay ── -->
+@if (loading && isEditMode) {
+  <div class="loading-overlay">
+    <mat-progress-bar mode="indeterminate" color="primary"></mat-progress-bar>
+    <p class="loading-text">加载配方数据…</p>
+  </div>
+}
+
+<!-- ── Editor Header ── -->
+<header class="editor-header">
+  <div class="header-left">
+    <mat-icon class="header-icon">edit_note</mat-icon>
+    <div>
+      <h2 class="header-title">{{ isEditMode ? '编辑配方' : '新建配方' }}</h2>
+      <p class="header-subtitle">
+        {{ isEditMode ? '修改配方信息、组分和工艺步骤' : '填写配方信息创建新配方' }}
+      </p>
+    </div>
+  </div>
+  @if (loading) {
+    <mat-progress-bar mode="indeterminate" class="header-progress"></mat-progress-bar>
+  }
+</header>
+
+<!-- ── Form ── -->
+<form [formGroup]="form" (ngSubmit)="onSubmit()" class="editor-form" novalidate>
+  <!-- ═══ Section 1: Basic Info ═══ -->
+  <mat-card class="section-card">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon class="section-icon">info</mat-icon>
+        基本信息
+      </mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="form-grid form-grid-4">
+        <!-- Name -->
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>配方名称</mat-label>
+          <input matInput formControlName="name" placeholder="例如: 环氧树脂配方A" />
+          @if (form.get('name')?.hasError('required') && form.get('name')?.touched) {
+            <mat-error>配方名称不能为空</mat-error>
+          }
+        </mat-form-field>
+
+        <!-- Code -->
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>配方编码</mat-label>
+          <input matInput formControlName="code" placeholder="例如: EP-001" />
+          @if (form.get('code')?.hasError('required') && form.get('code')?.touched) {
+            <mat-error>配方编码不能为空</mat-error>
+          }
+        </mat-form-field>
+
+        <!-- Component Mode -->
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>组分模式</mat-label>
+          <mat-select formControlName="component_mode">
+            @for (mode of componentModes; track mode) {
+              <mat-option [value]="mode">
+                {{ mode === 'single' ? '单组分' : '双组分' }}
+              </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Status -->
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>状态</mat-label>
+          <mat-select formControlName="status">
+            @for (s of statuses; track s) {
+              <mat-option [value]="s">
+                {{ s === 'draft' ? '草稿' : s === 'active' ? '激活' : '归档' }}
+              </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- ═══ Section 2: Parts & Ingredients ═══ -->
+  <mat-card class="section-card">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon class="section-icon">category</mat-icon>
+        组分配方
+      </mat-card-title>
+      <div class="header-actions">
+        <button
+          type="button"
+          mat-stroked-button
+          color="primary"
+          (click)="addPart('PartMain', 100)"
+          matTooltip="添加组分"
+        >
+          <mat-icon>add</mat-icon>
+          添加组分
+        </button>
+      </div>
+    </mat-card-header>
+    <mat-card-content>
+      @if (parts.length === 0) {
+        <div class="empty-hint">
+          <mat-icon>info</mat-icon>
+          <span>尚未添加组分，点击"添加组分"开始</span>
+        </div>
+      }
+
+      <!-- Part Expansion Panels -->
+      <mat-accordion class="parts-accordion">
+        @for (part of parts.controls; track partIdx; let partIdx = $index) {
+          <mat-expansion-panel [expanded]="true" class="part-panel">
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                <span class="part-label">
+                  <span
+                    class="part-badge"
+                    [class.part-a]="part.get('name')?.value === 'PartA'"
+                    [class.part-b]="part.get('name')?.value === 'PartB'"
+                    [class.part-main]="part.get('name')?.value === 'PartMain'"
+                  >
+                    {{ part.get('name')?.value === 'PartA' ? 'A' : part.get('name')?.value === 'PartB' ? 'B' : '主' }}
+                  </span>
+                  {{ part.get('name')?.value === 'PartMain' ? '主组分' : part.get('name')?.value }}
+                </span>
+              </mat-panel-title>
+              <mat-panel-description>
+                <span class="part-mix-ratio">
+                  混合比例: {{ part.get('mix_ratio')?.value }}%
+                </span>
+                <!-- Percentage Sum Indicator -->
+                @if (hasIngredients(partIdx)) {
+                  <span
+                    class="pct-indicator"
+                    [class.pct-valid]="isPercentageValid(partIdx)"
+                    [class.pct-invalid]="!isPercentageValid(partIdx)"
+                  >
+                    <mat-icon class="pct-icon">
+                      {{ isPercentageValid(partIdx) ? 'check_circle' : 'error' }}
+                    </mat-icon>
+                    {{ getPercentageSum(partIdx).toFixed(1) }}%
+                  </span>
+                }
+              </mat-panel-description>
+              <div class="panel-header-actions" (click)="$event.stopPropagation()">
+                <button
+                  type="button"
+                  mat-icon-button
+                  color="warn"
+                  (click)="removePart(partIdx)"
+                  matTooltip="删除组分"
+                  class="icon-btn-sm"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </div>
+            </mat-expansion-panel-header>
+
+            <!-- Part fields -->
+            <div class="part-body">
+              <div class="form-grid form-grid-3">
+                <mat-form-field appearance="outline" class="form-field">
+                  <mat-label>组分名称</mat-label>
+                  <mat-select [formControl]="getPartNameControl(part)">
+                    @for (pn of partNames; track pn) {
+                      <mat-option [value]="pn">
+                        {{ pn === 'PartMain' ? '主组分' : pn }}
+                      </mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="form-field">
+                  <mat-label>混合比例 (%)</mat-label>
+                  <input matInput type="number" [formControl]="getPartMixRatioControl(part)" />
+                </mat-form-field>
+              </div>
+
+              <mat-divider class="section-divider"></mat-divider>
+
+              <!-- Ingredients within this part -->
+              <div class="ingredients-section">
+                <div class="subsection-header">
+                  <h4>
+                    <mat-icon class="subsection-icon">science</mat-icon>
+                    配料列表
+                  </h4>
+                  <button
+                    type="button"
+                    mat-stroked-button
+                    color="accent"
+                    (click)="addIngredient(partIdx)"
+                    class="btn-sm"
+                  >
+                    <mat-icon>add</mat-icon>
+                    添加配料
+                  </button>
+                </div>
+
+                @if (ingredients(partIdx).length === 0) {
+                  <div class="empty-hint">
+                    <mat-icon>info</mat-icon>
+                    <span>暂无配料，点击"添加配料"开始</span>
+                  </div>
+                }
+
+                <!-- Ingredient Rows -->
+                @for (ing of ingredients(partIdx).controls; track ingIdx; let ingIdx = $index) {
+                  <div class="ingredient-card">
+                    <div class="ingredient-header">
+                      <span class="ingredient-index">配料 #{{ ingIdx + 1 }}</span>
+                      <button
+                        type="button"
+                        mat-icon-button
+                        color="warn"
+                        (click)="removeIngredient(partIdx, ingIdx)"
+                        matTooltip="删除配料"
+                        class="icon-btn-sm"
+                      >
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </div>
+                    <div class="form-grid form-grid-3">
+                      <mat-form-field appearance="outline" class="form-field">
+                        <mat-label>原材料</mat-label>
+                        <input matInput [formControl]="getIngControl(ing, 'material')" placeholder="例如: 环氧树脂" />
+                        @if (getIngControl(ing, 'material').hasError('required') && getIngControl(ing, 'material').touched) {
+                          <mat-error>原材料不能为空</mat-error>
+                        }
+                      </mat-form-field>
+                      <mat-form-field appearance="outline" class="form-field">
+                        <mat-label>百分比 (%)</mat-label>
+                        <input matInput type="number" [formControl]="getIngControl(ing, 'percentage')" step="0.01" />
+                      </mat-form-field>
+                      <mat-form-field appearance="outline" class="form-field">
+                        <mat-label>重量 (g)</mat-label>
+                        <input matInput type="number" [formControl]="getIngControl(ing, 'weight')" step="0.01" />
+                      </mat-form-field>
+                    </div>
+
+                    <!-- Dosing Actions for this ingredient -->
+                    <div class="dosing-section">
+                      <div class="subsection-header dosing-header">
+                        <h4>
+                          <mat-icon class="subsection-icon">link</mat-icon>
+                          投料动作
+                        </h4>
+                        <button
+                          type="button"
+                          mat-stroked-button
+                          (click)="addDosingAction(partIdx, ingIdx)"
+                          class="btn-sm"
+                        >
+                          <mat-icon>add</mat-icon>
+                          添加投料动作
+                        </button>
+                      </div>
+
+                      @for (da of dosingActions(partIdx, ingIdx).controls; track daIdx; let daIdx = $index) {
+                        <div class="dosing-row">
+                          <span class="dosing-index">#{{ daIdx + 1 }}</span>
+                          <mat-form-field appearance="outline" class="form-field dosing-field">
+                            <mat-label>关联步骤</mat-label>
+                            <mat-select [formControl]="getDaControl(da, 'step_ref')">
+                              <mat-option [value]="-1">-- 选择步骤 --</mat-option>
+                              @for (opt of stepOptions; track opt.index) {
+                                <mat-option [value]="opt.index">{{ opt.label }}</mat-option>
+                              }
+                            </mat-select>
+                          </mat-form-field>
+                          <mat-form-field appearance="outline" class="form-field dosing-field-sm">
+                            <mat-label>比例 (%)</mat-label>
+                            <input matInput type="number" [formControl]="getDaControl(da, 'use_ratio')" step="0.01" />
+                          </mat-form-field>
+                          <mat-form-field appearance="outline" class="form-field dosing-field">
+                            <mat-label>投料方法</mat-label>
+                            <input matInput [formControl]="getDaControl(da, 'dosing_method')" placeholder="例如: 手动" />
+                          </mat-form-field>
+                          <button
+                            type="button"
+                            mat-icon-button
+                            color="warn"
+                            (click)="removeDosingAction(partIdx, ingIdx, daIdx)"
+                            matTooltip="删除投料动作"
+                            class="icon-btn-sm"
+                          >
+                            <mat-icon>delete</mat-icon>
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          </mat-expansion-panel>
+        }
+      </mat-accordion>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- ═══ Section 3: Process Steps ═══ -->
+  <mat-card class="section-card">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon class="section-icon">timeline</mat-icon>
+        工艺步骤
+      </mat-card-title>
+      <div class="header-actions">
+        <button
+          type="button"
+          mat-stroked-button
+          color="primary"
+          (click)="addStep()"
+          matTooltip="添加步骤"
+        >
+          <mat-icon>add</mat-icon>
+          添加步骤
+        </button>
+      </div>
+    </mat-card-header>
+    <mat-card-content>
+      @if (steps.length === 0) {
+        <div class="empty-hint">
+          <mat-icon>info</mat-icon>
+          <span>尚未添加工艺步骤，点击"添加步骤"开始</span>
+        </div>
+      }
+
+      <mat-accordion class="steps-accordion">
+        @for (step of stepControls(); track stepIdx; let stepIdx = $index) {
+          <mat-expansion-panel class="step-panel">
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                <span class="step-badge">{{ step.get('step_no')?.value }}</span>
+                {{ step.get('name')?.value || '(未命名步骤)' }}
+              </mat-panel-title>
+              <mat-panel-description>
+                @if (step.get('temperature')?.value) {
+                  <span class="step-meta">{{ step.get('temperature')?.value }}</span>
+                }
+                @if (step.get('duration')?.value) {
+                  <span class="step-meta">{{ step.get('duration')?.value }}</span>
+                }
+              </mat-panel-description>
+              <div class="panel-header-actions" (click)="$event.stopPropagation()">
+                <button
+                  type="button"
+                  mat-icon-button
+                  color="warn"
+                  (click)="removeStep(stepIdx)"
+                  matTooltip="删除步骤"
+                  class="icon-btn-sm"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </div>
+            </mat-expansion-panel-header>
+
+            <div class="step-body">
+              <div class="form-grid form-grid-2">
+                <mat-form-field appearance="outline" class="form-field">
+                  <mat-label>步骤序号</mat-label>
+                  <input matInput type="number" [formControl]="getStepControl(step, 'step_no')" />
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="form-field">
+                  <mat-label>步骤名称</mat-label>
+                  <input matInput [formControl]="getStepControl(step, 'name')" placeholder="例如: 混料搅拌" />
+                  @if (getStepControl(step, 'name').hasError('required') && getStepControl(step, 'name').touched) {
+                    <mat-error>步骤名称不能为空</mat-error>
+                  }
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="form-field">
+                  <mat-label>温度</mat-label>
+                  <input matInput [formControl]="getStepControl(step, 'temperature')" placeholder="例如: 25°C" />
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="form-field">
+                  <mat-label>时长</mat-label>
+                  <input matInput [formControl]="getStepControl(step, 'duration')" placeholder="例如: 30min" />
+                </mat-form-field>
+              </div>
+            </div>
+          </mat-expansion-panel>
+        }
+      </mat-accordion>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- ═══ Form Actions ═══ -->
+  <div class="form-actions">
+    <button
+      type="button"
+      mat-stroked-button
+      (click)="onCancel()"
+      [disabled]="loading"
+    >
+      <mat-icon>close</mat-icon>
+      取消
+    </button>
+    <button
+      type="submit"
+      mat-raised-button
+      color="primary"
+      [disabled]="form.invalid || loading"
+    >
+      @if (loading) {
+        <mat-icon class="spinning">sync</mat-icon>
+      }
+      <mat-icon>{{ isEditMode ? 'save' : 'add_circle' }}</mat-icon>
+      {{ isEditMode ? '保存修改' : '创建配方' }}
+    </button>
+  </div>
+</form>

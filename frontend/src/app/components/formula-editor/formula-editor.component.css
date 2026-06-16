@@ -1,0 +1,385 @@
+/* ═══════════════════════════════════════════════
+   Formula Editor — M3 Form & Expansion Panels
+   ═══════════════════════════════════════════════ */
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* ═══ Loading Overlay ═══ */
+.loading-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--app-spacing-md, 16px);
+  padding: var(--app-spacing-2xl, 48px);
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: color-mix(in srgb, var(--mat-sys-surface, #FEF7FF) 90%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.loading-text {
+  font-size: var(--mat-sys-body-medium-size, 0.875rem);
+  color: var(--mat-sys-on-surface-variant, #49454F);
+  margin: 0;
+}
+
+/* ═══ Editor Header ═══ */
+.editor-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: var(--app-spacing-lg, 24px) var(--app-spacing-lg, 24px) var(--app-spacing-md, 16px);
+  border-bottom: 1px solid var(--mat-sys-outline-variant, #CAC4D0);
+  position: relative;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--app-spacing-md, 16px);
+}
+
+.header-icon {
+  font-size: 32px;
+  width: 32px;
+  height: 32px;
+  color: var(--mat-sys-primary, #6750A4);
+}
+
+.header-title {
+  font-size: var(--mat-sys-title-large-size, 1.375rem);
+  font-weight: 500;
+  color: var(--mat-sys-on-surface, #1D1B20);
+  margin: 0 0 4px;
+}
+
+.header-subtitle {
+  font-size: var(--mat-sys-body-medium-size, 0.875rem);
+  color: var(--mat-sys-on-surface-variant, #49454F);
+  margin: 0;
+}
+
+.header-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+/* ═══ Form ═══ */
+.editor-form {
+  padding: var(--app-spacing-lg, 24px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-spacing-lg, 24px);
+}
+
+/* ═══ Section Cards ═══ */
+.section-card mat-card-header {
+  padding-bottom: 0;
+}
+
+.section-card mat-card-title {
+  display: flex;
+  align-items: center;
+  gap: var(--app-spacing-sm, 8px);
+}
+
+.section-icon {
+  color: var(--mat-sys-primary, #6750A4);
+}
+
+.header-actions {
+  margin-left: auto;
+}
+
+/* ═══ Form Grids ═══ */
+.form-grid {
+  display: grid;
+  gap: var(--app-spacing-md, 16px);
+}
+
+.form-grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.form-grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.form-grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.form-field {
+  width: 100%;
+}
+
+/* ═══ Empty Hint ═══ */
+.empty-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--app-spacing-sm, 8px);
+  padding: var(--app-spacing-lg, 24px);
+  color: var(--mat-sys-on-surface-variant, #49454F);
+  border: 1px dashed var(--mat-sys-outline-variant, #CAC4D0);
+  border-radius: var(--mat-sys-shape-corner-medium, 12px);
+  font-size: var(--mat-sys-body-medium-size, 0.875rem);
+}
+
+/* ═══ Parts Accordion ═══ */
+.parts-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-spacing-sm, 8px);
+}
+
+.part-panel {
+  border-radius: var(--mat-sys-shape-corner-medium, 12px);
+}
+
+.part-label {
+  display: flex;
+  align-items: center;
+  gap: var(--app-spacing-sm, 8px);
+}
+
+.part-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: white;
+}
+
+.part-a {
+  background: var(--mat-sys-primary, #6750A4);
+}
+
+.part-b {
+  background: var(--mat-sys-secondary, #625B71);
+}
+
+.part-main {
+  background: var(--mat-sys-tertiary, #7D5260);
+}
+
+.part-mix-ratio {
+  font-size: var(--mat-sys-body-medium-size, 0.875rem);
+  color: var(--mat-sys-on-surface-variant, #49454F);
+  margin-left: auto;
+  margin-right: var(--app-spacing-md, 16px);
+}
+
+/* Percentage sum indicator */
+.pct-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.pct-valid {
+  color: var(--mat-sys-primary, #6750A4);
+}
+
+.pct-invalid {
+  color: var(--mat-sys-error, #B3261E);
+}
+
+.pct-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+/* ═══ Part Body ═══ */
+.part-body {
+  padding: var(--app-spacing-md, 16px) 0 0;
+}
+
+.section-divider {
+  margin: var(--app-spacing-md, 16px) 0;
+}
+
+/* ═══ Subsection Header ═══ */
+.subsection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--app-spacing-sm, 8px);
+}
+
+.subsection-header h4 {
+  font-size: var(--mat-sys-title-small-size, 0.875rem);
+  font-weight: 500;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--app-spacing-xs, 4px);
+}
+
+.subsection-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: var(--mat-sys-on-surface-variant, #49454F);
+}
+
+.btn-sm {
+  height: 32px;
+  font-size: 0.8125rem;
+}
+
+/* ═══ Ingredient Card ═══ */
+.ingredient-card {
+  border: 1px solid var(--mat-sys-outline-variant, #CAC4D0);
+  border-radius: var(--mat-sys-shape-corner-small, 8px);
+  padding: var(--app-spacing-md, 16px);
+  margin-bottom: var(--app-spacing-sm, 8px);
+}
+
+.ingredient-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--app-spacing-sm, 8px);
+}
+
+.ingredient-index {
+  font-size: var(--mat-sys-label-large-size, 0.875rem);
+  font-weight: 500;
+  color: var(--mat-sys-on-surface-variant, #49454F);
+}
+
+/* ═══ Dosing Actions ═══ */
+.dosing-section {
+  margin-top: var(--app-spacing-md, 16px);
+  padding-top: var(--app-spacing-md, 16px);
+  border-top: 1px solid var(--mat-sys-outline-variant, #CAC4D0);
+}
+
+.dosing-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--app-spacing-sm, 8px);
+  margin-bottom: var(--app-spacing-sm, 8px);
+}
+
+.dosing-index {
+  font-size: var(--mat-sys-label-medium-size, 0.75rem);
+  color: var(--mat-sys-on-surface-variant, #49454F);
+  padding-top: 12px;
+  white-space: nowrap;
+}
+
+.dosing-field {
+  flex: 1;
+}
+
+.dosing-field-sm {
+  width: 120px;
+  flex-shrink: 0;
+}
+
+/* ═══ Steps Accordion ═══ */
+.steps-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-spacing-sm, 8px);
+}
+
+.step-panel {
+  border-radius: var(--mat-sys-shape-corner-medium, 12px);
+}
+
+.step-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mat-sys-primary-container, #EADDFF);
+  color: var(--mat-sys-on-primary-container, #21005D);
+  font-weight: 600;
+  font-size: 0.75rem;
+  margin-right: var(--app-spacing-sm, 8px);
+}
+
+.step-meta {
+  font-size: var(--mat-sys-body-small-size, 0.75rem);
+  color: var(--mat-sys-on-surface-variant, #49454F);
+  margin-right: var(--app-spacing-md, 16px);
+  padding: 2px 8px;
+  background: var(--mat-sys-surface-container, #F3EDF7);
+  border-radius: var(--mat-sys-shape-corner-full, 9999px);
+}
+
+.step-body {
+  padding: var(--app-spacing-md, 16px) 0 0;
+}
+
+/* ═══ Form Actions (Sticky Footer) ═══ */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--app-spacing-md, 16px);
+  padding: var(--app-spacing-lg, 24px) 0 0;
+  border-top: 1px solid var(--mat-sys-outline-variant, #CAC4D0);
+  position: sticky;
+  bottom: 0;
+  background: var(--mat-sys-surface, #FEF7FF);
+}
+
+/* ═══ Panel Header Actions ═══ */
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+}
+
+.icon-btn-sm mat-icon {
+  font-size: 18px;
+}
+
+/* ═══ Spinner Animation ═══ */
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ═══ Responsive ═══ */
+@media (max-width: 768px) {
+  .form-grid-4,
+  .form-grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .dosing-row {
+    flex-wrap: wrap;
+  }
+
+  .dosing-field-sm {
+    width: 100%;
+  }
+}

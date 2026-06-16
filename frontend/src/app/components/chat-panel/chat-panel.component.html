@@ -1,0 +1,102 @@
+<mat-card class="chat-card">
+  <mat-card-header>
+    <mat-card-title>
+      <mat-icon class="section-icon">smart_toy</mat-icon>
+      AI 配方助手
+    </mat-card-title>
+    <span class="connection-badge">
+      <span class="status-dot" [class.online]="connectionStatus() === '已连接'"></span>
+      <span class="status-label">{{ connectionStatus() }}</span>
+    </span>
+  </mat-card-header>
+
+  <mat-card-content class="chat-content">
+    <!-- Loading bar -->
+    @if (isRunning()) {
+      <mat-progress-bar mode="indeterminate" class="loading-bar"></mat-progress-bar>
+    }
+
+    <!-- Message list -->
+    <div #messagesContainer class="messages-container">
+      @if (messages().length === 0) {
+        <div class="empty-state">
+          <div class="empty-icon">
+            <mat-icon>psychology</mat-icon>
+          </div>
+          <p class="empty-title">AI 配方助手</p>
+          <p class="empty-desc">
+            你可以问我关于配方的任何问题，例如：<br />
+            "有哪些双组分配方？"<br />
+            "帮我创建一个新配方"
+          </p>
+        </div>
+      }
+
+      @for (msg of messages(); track $index) {
+        @if (msg.role === 'tool') {
+          <!-- Tool call chip -->
+          <div class="message-row tool-row">
+            <mat-chip class="tool-chip" highlighted>
+              <mat-icon matChipAvatar>build</mat-icon>
+              {{ msg.toolName ?? msg.content }}
+            </mat-chip>
+          </div>
+        } @else {
+          <div class="message-row" [class.user-row]="msg.role === 'user'" [class.assistant-row]="msg.role === 'assistant'">
+            <div class="message-bubble" [class.user-bubble]="msg.role === 'user'" [class.assistant-bubble]="msg.role === 'assistant'">
+              @if (msg.role === 'assistant') {
+                <div class="bubble-avatar">
+                  <mat-icon>smart_toy</mat-icon>
+                </div>
+              }
+              <div class="bubble-content">
+                <p class="bubble-text">{{ msg.content }}</p>
+              </div>
+            </div>
+          </div>
+        }
+      }
+
+      <!-- Typing indicator -->
+      @if (isRunning()) {
+        <div class="message-row assistant-row">
+          <div class="message-bubble assistant-bubble">
+            <div class="bubble-avatar">
+              <mat-icon>smart_toy</mat-icon>
+            </div>
+            <div class="bubble-content">
+              <div class="typing-indicator">
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Input area -->
+    <div class="input-area">
+      <mat-form-field class="input-field" appearance="outline">
+        <mat-label>输入消息...</mat-label>
+        <input
+          matInput
+          [(ngModel)]="inputText"
+          (keydown)="onKeydown($event)"
+          [disabled]="isRunning()"
+          placeholder="询问配方相关问题..."
+        />
+      </mat-form-field>
+      <button
+        mat-icon-button
+        class="send-button"
+        (click)="sendMessage()"
+        [disabled]="!inputText.trim() || isRunning()"
+        [attr.aria-label]="'发送消息'"
+      >
+        <mat-icon>send</mat-icon>
+      </button>
+    </div>
+  </mat-card-content>
+</mat-card>

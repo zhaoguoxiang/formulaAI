@@ -1,0 +1,68 @@
+/* ═══ App Layout — M3 Grid System ═══ */
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* Toolbar */
+mat-toolbar {
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.app-title {
+  font: var(--mat-sys-title-large-font, 400 1.375rem/1.75rem 'DM Sans', Roboto, sans-serif);
+  font-size: var(--mat-sys-title-large-size, 1.375rem);
+  line-height: var(--mat-sys-title-large-line-height, 1.75rem);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: inherit;
+}
+
+/* Main layout container — M3 standard padding = 16px (2 × 8dp) */
+.app-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  gap: var(--app-spacing-md, 16px);
+  padding: var(--app-spacing-md, 16px);
+}
+
+/* Main content area — flexible */
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Main card inside app-main — M3 elevated card */
+.app-main > mat-card,
+.app-main > mat-card > mat-card-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Mat tab group inside the main card should fill the space */
+.app-main mat-tab-group {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sidebar — M3 sidebar width standard = 360dp */
+.app-sidebar {
+  width: 360px;
+  min-width: 280px;
+  max-width: 420px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}

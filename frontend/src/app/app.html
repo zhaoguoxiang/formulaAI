@@ -1,0 +1,32 @@
+<mat-toolbar color="primary">
+  <span class="app-title">FormulAI</span>
+</mat-toolbar>
+
+<div class="app-container">
+  <div class="app-main">
+    <mat-card>
+      <mat-card-content>
+        <mat-tab-group>
+          <mat-tab label="配方展示">
+            <app-formula-matrix />
+          </mat-tab>
+          <mat-tab label="配方分析">
+            <app-formula-analysis />
+          </mat-tab>
+          <mat-tab label="新增">
+            <app-formula-editor
+              (saved)="onFormulaSaved($event)"
+              (cancelled)="onEditorCancelled()"
+            />
+          </mat-tab>
+        </mat-tab-group>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <div class="app-sidebar">
+    <app-chat-panel />
+  </div>
+</div>
+
+<router-outlet />
