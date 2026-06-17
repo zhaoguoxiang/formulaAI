@@ -40,7 +40,7 @@
 /* ── Card Icon ── */
 .card-icon {
   margin-right: var(--app-spacing-sm, 8px);
-  color: var(--mat-sys-primary, #6750A4);
+  color: var(--mat-sys-color-primary, #6750A4);
   vertical-align: middle;
 }
 
@@ -57,11 +57,11 @@
   align-items: center;
   gap: var(--app-spacing-sm, 8px);
   padding: var(--app-spacing-xl, 32px);
-  color: var(--mat-sys-on-surface-variant, #49454F);
+  color: var(--mat-sys-color-on-surface-variant, #49454F);
 }
 
 .state-error {
-  color: var(--mat-sys-error, #B3261E);
+  color: var(--mat-sys-color-error, #B3261E);
 }
 
 .state-empty {
@@ -80,14 +80,14 @@
 .dosing-table th {
   font: var(--mat-sys-label-large-size, 0.875rem) / var(--mat-sys-label-large-line-height, 1.25rem);
   font-weight: 500;
-  color: var(--mat-sys-on-surface-variant, #49454F);
+  color: var(--mat-sys-color-on-surface-variant, #49454F);
   height: 48px;
 }
 
 .dosing-table td {
   font: var(--mat-sys-body-medium-size, 0.875rem);
   font-size: var(--mat-sys-body-medium-size, 0.875rem);
-  border-bottom: 1px solid var(--mat-sys-outline-variant, #CAC4D0);
+  border-bottom: 1px solid var(--mat-sys-color-outline-variant, #CAC4D0);
 }
 
 /* ── Count Badge ── */
@@ -98,8 +98,8 @@
   min-width: 28px;
   height: 24px;
   border-radius: var(--mat-sys-shape-corner-full, 9999px);
-  background: var(--mat-sys-primary-container, #EADDFF);
-  color: var(--mat-sys-on-primary-container, #21005D);
+  background: var(--mat-sys-color-primary-container, #EADDFF);
+  color: var(--mat-sys-color-on-primary-container, #21005D);
   font-size: var(--mat-sys-label-medium-size, 0.75rem);
   font-weight: 500;
 }

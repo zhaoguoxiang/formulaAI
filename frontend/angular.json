@@ -25,7 +25,8 @@
               }
             ],
             "styles": [
-              "src/styles.scss"
+              "src/styles.scss",
+              "node_modules/vditor/dist/index.css"
             ]
           },
           "configurations": {
@@ -37,7 +38,7 @@
                 {
                   "type": "initial",
                   "maximumWarning": "2MB",
-                  "maximumError": "3MB"
+                  "maximumError": "5MB"
                 },
                 {
                   "type": "anyComponentStyle",

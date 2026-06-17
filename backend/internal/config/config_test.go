@@ -6,11 +6,25 @@ import (
 )
 
 func TestLoadConfig_Defaults(t *testing.T) {
-	// Clear all relevant env vars to test defaults
+	// Clear all relevant env vars to test defaults — but DB_PASSWORD is required
 	envVars := []string{"DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "SERVER_PORT"}
 	for _, k := range envVars {
 		os.Unsetenv(k)
 	}
+	// DB_PASSWORD is required, so LoadConfig must fail without it
+	_, err := LoadConfig()
+	if err == nil {
+		t.Fatal("LoadConfig() should fail when DB_PASSWORD is unset")
+	}
+}
+
+func TestLoadConfig_Defaults_WithPassword(t *testing.T) {
+	envVars := []string{"DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "SERVER_PORT"}
+	for _, k := range envVars {
+		os.Unsetenv(k)
+	}
+	os.Setenv("DB_PASSWORD", "testpass")
+	defer os.Unsetenv("DB_PASSWORD")
 
 	cfg, err := LoadConfig()
 	if err != nil {
@@ -26,14 +40,17 @@ func TestLoadConfig_Defaults(t *testing.T) {
 	if cfg.DBUser != "formula" {
 		t.Errorf("expected DBUser=formula, got %s", cfg.DBUser)
 	}
-	if cfg.DBPassword != "changeme" {
-		t.Errorf("expected DBPassword=changeme, got %s", cfg.DBPassword)
+	if cfg.DBPassword != "testpass" {
+		t.Errorf("expected DBPassword=testpass, got %s", cfg.DBPassword)
 	}
 	if cfg.DBName != "formula_ai" {
 		t.Errorf("expected DBName=formula_ai, got %s", cfg.DBName)
 	}
 	if cfg.ServerPort != "8080" {
 		t.Errorf("expected ServerPort=8080, got %s", cfg.ServerPort)
+	}
+	if cfg.DBSSLMode != "disable" {
+		t.Errorf("expected DBSSLMode=disable, got %s", cfg.DBSSLMode)
 	}
 }
 
@@ -44,8 +61,9 @@ func TestLoadConfig_CustomValues(t *testing.T) {
 	os.Setenv("DB_PASSWORD", "secret")
 	os.Setenv("DB_NAME", "test_db")
 	os.Setenv("SERVER_PORT", "9090")
+	os.Setenv("DB_SSLMODE", "require")
 	defer func() {
-		for _, k := range []string{"DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "SERVER_PORT"} {
+		for _, k := range []string{"DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "SERVER_PORT", "DB_SSLMODE"} {
 			os.Unsetenv(k)
 		}
 	}()
@@ -72,6 +90,9 @@ func TestLoadConfig_CustomValues(t *testing.T) {
 	}
 	if cfg.ServerPort != "9090" {
 		t.Errorf("expected ServerPort=9090, got %s", cfg.ServerPort)
+	}
+	if cfg.DBSSLMode != "require" {
+		t.Errorf("expected DBSSLMode=require, got %s", cfg.DBSSLMode)
 	}
 }
 
@@ -123,6 +144,7 @@ func TestDSN(t *testing.T) {
 		DBUser:     "formula",
 		DBPassword: "changeme",
 		DBName:     "formula_ai",
+		DBSSLMode:  "disable",
 		ServerPort: "8080",
 	}
 
@@ -140,6 +162,7 @@ func TestDSN_PasswordWithSpecialChars(t *testing.T) {
 		DBUser:     "formula",
 		DBPassword: "p@ss:word!",
 		DBName:     "formula_ai",
+		DBSSLMode:  "disable",
 	}
 
 	dsn := cfg.DSN()
@@ -147,5 +170,26 @@ func TestDSN_PasswordWithSpecialChars(t *testing.T) {
 	expected := "postgres://formula:p%40ss%3Aword%21@localhost:5432/formula_ai?sslmode=disable"
 	if dsn != expected {
 		t.Errorf("expected DSN=%s, got %s", expected, dsn)
+	}
+}
+
+func TestValidate_InvalidPort(t *testing.T) {
+	tests := []struct {
+		name string
+		port string
+	}{
+		{"empty", ""},
+		{"not a number", "abc"},
+		{"out of range low", "0"},
+		{"out of range high", "65536"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePort(tt.port)
+			if err == nil {
+				t.Errorf("expected error for port %q", tt.port)
+			}
+		})
 	}
 }

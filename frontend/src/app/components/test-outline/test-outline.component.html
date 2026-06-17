@@ -1,0 +1,116 @@
+<!-- ═══════════════════════════════════════════════
+     Test Outline — Single Outline with Versioning
+     ═══════════════════════════════════════════════ -->
+
+<div class="outline-root">
+  <div class="section-header">
+    <mat-icon class="section-icon">assignment</mat-icon>
+    <h2 class="section-title">测试大纲</h2>
+    <span class="edit-version-badge">
+      <mat-icon>history</mat-icon>
+      v{{ editOutlineVersion() || 1 }}
+    </span>
+  </div>
+
+  @if (loading()) {
+    <div class="state-container">
+      <mat-spinner diameter="40" />
+      <p class="state-text">正在加载…</p>
+    </div>
+  } @else if (error()) {
+    <div class="state-container">
+      <div class="state-icon-wrapper error-icon-wrapper">
+        <mat-icon class="state-icon">error_outline</mat-icon>
+      </div>
+      <p class="state-text error-text">{{ error() }}</p>
+      <button mat-stroked-button color="primary" (click)="loadOutline()">
+        <mat-icon>refresh</mat-icon>
+        重试
+      </button>
+    </div>
+  } @else {
+    <mat-card class="edit-card">
+
+      @for (item of editForm!.items; track itemIdx; let itemIdx = $index) {
+        <div class="edit-item-section">
+          <div class="edit-item-header">
+            <button mat-icon-button class="item-collapse-btn" (click)="toggleItemCollapse(itemIdx)"
+                    [attr.aria-label]="isItemCollapsed(itemIdx) ? '展开' : '折叠'">
+              <mat-icon>{{ isItemCollapsed(itemIdx) ? 'chevron_right' : 'expand_more' }}</mat-icon>
+            </button>
+            <mat-form-field appearance="outline" class="edit-item-name-field">
+              <mat-label>检测项名称</mat-label>
+              <input matInput [(ngModel)]="item.name" />
+            </mat-form-field>
+            <button mat-icon-button color="warn" (click)="removeItem(itemIdx)" matTooltip="删除检测项">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+
+          @if (!isItemCollapsed(itemIdx)) {
+            @for (ind of item.indicators; track indIdx; let indIdx = $index) {
+              <div class="edit-indicator-card">
+                <div class="indicator-card-header">
+                  <span class="indicator-card-index">指标 #{{ indIdx + 1 }}</span>
+                  <button mat-icon-button color="warn" (click)="removeIndicator(itemIdx, indIdx)" matTooltip="删除指标">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </div>
+
+                <div class="indicator-short-fields">
+                  <mat-form-field appearance="outline" class="field-name">
+                    <mat-label>指标名称</mat-label>
+                    <input matInput [(ngModel)]="ind.name" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="field-unit">
+                    <mat-label>单位</mat-label>
+                    <input matInput [(ngModel)]="ind.unit" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="field-min">
+                    <mat-label>最小值</mat-label>
+                    <input matInput type="number" [(ngModel)]="ind.min_value" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="field-max">
+                    <mat-label>最大值</mat-label>
+                    <input matInput type="number" [(ngModel)]="ind.max_value" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="field-condition">
+                    <mat-label>测试条件</mat-label>
+                    <input matInput [(ngModel)]="ind.test_condition" />
+                  </mat-form-field>
+                </div>
+
+                <div class="indicator-long-fields">
+                  <label class="field-label">制样方法</label>
+                  <app-milkdown-field [(value)]="ind.sample_prep_method" />
+
+                  <label class="field-label">检测方法</label>
+                  <app-milkdown-field [(value)]="ind.test_method" />
+                </div>
+              </div>
+            }
+
+            <button mat-stroked-button (click)="addIndicator(itemIdx)" class="add-indicator-btn">
+              <mat-icon>add</mat-icon>
+              添加指标
+            </button>
+          }
+        </div>
+      }
+
+      <button mat-stroked-button (click)="addItem()" class="add-item-btn">
+        <mat-icon>add</mat-icon>
+        添加检测项
+      </button>
+
+      <div class="edit-actions">
+        <button mat-raised-button color="primary" (click)="saveOutline()" [disabled]="saving()">
+          @if (saving()) {
+            <mat-spinner diameter="20" class="save-spinner" />
+          }
+          保存为新版本
+        </button>
+      </div>
+    </mat-card>
+  }
+</div>

@@ -3,6 +3,8 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -14,32 +16,30 @@ import (
 )
 
 // NewPostgresDB opens a PostgreSQL connection and configures the connection pool.
+// Pool settings can be overridden via environment variables:
 //
-// Pool settings:
-//   - MaxOpenConns: 25
-//   - MaxIdleConns: 5
-//   - ConnMaxLifetime: 5 minutes
+//	DB_MAX_OPEN_CONNS (default 25)
+//	DB_MAX_IDLE_CONNS (default 5)
+//	DB_CONN_MAX_LIFETIME (default "5m")
 func NewPostgresDB(cfg *config.Config) (*sql.DB, error) {
 	db, err := sql.Open("postgres", cfg.DSN())
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetMaxOpenConns(envInt("DB_MAX_OPEN_CONNS", 25))
+	db.SetMaxIdleConns(envInt("DB_MAX_IDLE_CONNS", 5))
+	db.SetConnMaxLifetime(envDuration("DB_CONN_MAX_LIFETIME", 5*time.Minute))
 
 	if err := db.Ping(); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	return db, nil
 }
 
-// RunMigrations applies all pending "up" migrations from the given directory
-// using golang-migrate. The migrationsPath should point to a directory containing
-// .up.sql and .down.sql files.
+// RunMigrations applies all pending "up" migrations from the given directory.
 func RunMigrations(db *sql.DB, migrationsPath string) error {
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
@@ -60,4 +60,28 @@ func RunMigrations(db *sql.DB, migrationsPath string) error {
 	}
 
 	return nil
+}
+
+func envInt(key string, defaultVal int) int {
+	s := os.Getenv(key)
+	if s == "" {
+		return defaultVal
+	}
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return defaultVal
+	}
+	return v
+}
+
+func envDuration(key string, defaultVal time.Duration) time.Duration {
+	s := os.Getenv(key)
+	if s == "" {
+		return defaultVal
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return defaultVal
+	}
+	return d
 }

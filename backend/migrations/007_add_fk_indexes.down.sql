@@ -1,0 +1,9 @@
+DROP INDEX IF EXISTS idx_test_indicators_item_id;
+DROP INDEX IF EXISTS idx_test_items_outline_id;
+DROP INDEX IF EXISTS idx_formula_dosing_actions_ingredient_id;
+DROP INDEX IF EXISTS idx_formula_dosing_actions_step_id;
+DROP INDEX IF EXISTS idx_formula_steps_part_id;
+DROP INDEX IF EXISTS idx_formula_steps_formula_id;
+DROP INDEX IF EXISTS idx_formula_ingredients_part_id;
+DROP INDEX IF EXISTS idx_formula_parts_sort_order;
+DROP INDEX IF EXISTS idx_formula_parts_formula_id;

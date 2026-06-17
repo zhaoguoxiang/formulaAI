@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   ReactiveFormsModule,
@@ -20,31 +20,23 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { Subscription, combineLatest, map, startWith } from 'rxjs';
+import { Subscription } from 'rxjs';
 
 import { FormulaApiService } from '../../services/formula-api.service';
 import {
-  Formula,
-  FormulaPart,
-  FormulaIngredient,
-  FormulaStep,
-  FormulaDosingAction,
-  ComponentMode,
-  FormulaStatus,
-  PartName,
+  Formula, FormulaPart, FormulaStep, ComponentMode, FormulaStatus,
 } from '../../types/formula.types';
-
-// ─── Helper ───
+import { getModeLabel, getStatusLabel, getPartNameLabel } from '../../utils/formula-labels';
+import { extractErrorMessage } from '../../utils/error.utils';
 
 function generateTempId(): string {
   return 'tmp_' + Math.random().toString(36).substring(2, 10);
 }
 
-// ─── Component ───
-
 @Component({
   selector: 'app-formula-editor',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     ReactiveFormsModule,
@@ -61,7 +53,7 @@ function generateTempId(): string {
     MatTooltipModule,
   ],
   templateUrl: './formula-editor.component.html',
-  styleUrl: './formula-editor.component.css',
+  styleUrl: './formula-editor.component.scss',
 })
 export class FormulaEditorComponent implements OnInit, OnDestroy {
   @Input() formulaId: string | null = null;
@@ -71,13 +63,10 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
   form!: FormGroup;
   loading = false;
   isEditMode = false;
+  savedCode = '';
 
   readonly componentModes: ComponentMode[] = ['single', 'double'];
   readonly statuses: FormulaStatus[] = ['draft', 'active', 'archived'];
-  readonly partNames: PartName[] = ['PartA', 'PartB', 'PartMain'];
-
-  // Percentage sum streams per part → observable of number
-  percentageSums: Map<number, number> = new Map();
 
   private subs = new Subscription();
 
@@ -87,17 +76,19 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
     private readonly snackBar: MatSnackBar,
   ) {}
 
-  // ─── Lifecycle ───
-
   ngOnInit(): void {
     this.buildForm();
+    this.syncPartsForMode(this.form.get('component_mode')!.value);
+
+    this.subs.add(
+      this.form.get('component_mode')!.valueChanges.subscribe((mode) => {
+        this.syncPartsForMode(mode);
+      }),
+    );
 
     if (this.formulaId) {
       this.isEditMode = true;
       this.loadFormula(this.formulaId);
-    } else {
-      // Create mode: seed one default MAIN part with two empty ingredients
-      this.addPart('PartMain', 100);
     }
   }
 
@@ -105,12 +96,11 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
     this.subs.unsubscribe();
   }
 
-  // ─── Form Construction ───
+  // ─── Form ───
 
   private buildForm(): void {
     this.form = this.fb.group({
       name: ['', [Validators.required, Validators.maxLength(200)]],
-      code: ['', [Validators.required, Validators.maxLength(100)]],
       component_mode: ['single', Validators.required],
       status: ['draft', Validators.required],
       parts: this.fb.array([]),
@@ -118,7 +108,28 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ─── Getters for FormArrays ───
+  /** Rebuild parts array based on the selected component_mode. */
+  private syncPartsForMode(mode: string): void {
+    while (this.parts.length) this.parts.removeAt(0);
+
+    if (mode === 'double') {
+      this.createPart('PartA', 50);
+      this.createPart('PartB', 50);
+    } else {
+      this.createPart('PartMain', 100);
+    }
+  }
+
+  private createPart(name: string, mixRatio: number): void {
+    const partGroup = this.fb.group({
+      name: [name],
+      mix_ratio: [mixRatio, [Validators.required, Validators.min(0), Validators.max(100)]],
+      ingredients: this.fb.array([]),
+    });
+    this.parts.push(partGroup);
+  }
+
+  // ─── Getters ───
 
   get parts(): FormArray {
     return this.form.get('parts') as FormArray;
@@ -140,57 +151,46 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
     return this.steps.controls;
   }
 
-  // ─── Add / Remove ───
-
-  addPart(name: PartName = 'PartMain', mixRatio = 100): void {
-    const partGroup = this.fb.group({
-      name: [name, Validators.required],
-      mix_ratio: [mixRatio, [Validators.required, Validators.min(0), Validators.max(100)]],
-      sort_order: [this.parts.length],
-      ingredients: this.fb.array([]),
-    });
-
-    const partIdx = this.parts.length;
-    this.parts.push(partGroup);
-
-    // Track percentage sum for this part
-    const ingArr = partGroup.get('ingredients') as FormArray;
-    this.subs.add(
-      ingArr.valueChanges.subscribe(() => {
-        this.recalcPercentageSum(partIdx, ingArr);
-      }),
-    );
-
-    // Initial calculation
-    this.recalcPercentageSum(partIdx, ingArr);
+  partName(partIndex: number): string {
+    return this.parts.at(partIndex).get('name')?.value ?? '';
   }
 
-  removePart(index: number): void {
-    this.parts.removeAt(index);
-    this.percentageSums.delete(index);
-    // Re-index percentage sums
-    const newMap = new Map<number, number>();
-    this.percentageSums.forEach((val, key) => {
-      if (key > index) newMap.set(key - 1, val);
-      else if (key < index) newMap.set(key, val);
-    });
-    this.percentageSums = newMap;
+  partLabel(partIndex: number): string {
+    const n = this.partName(partIndex);
+    if (n === 'PartMain') return '主组分';
+    return n;
   }
+
+  isDoubleMode(): boolean {
+    return this.form.get('component_mode')?.value === 'double';
+  }
+
+  // ─── Ingredients ───
 
   addIngredient(partIndex: number): void {
     const ingGroup = this.fb.group({
       material: ['', [Validators.required, Validators.maxLength(200)]],
-      percentage: [0, [Validators.required, Validators.min(0), Validators.max(100)]],
       weight: [0, [Validators.min(0)]],
       dosing_actions: this.fb.array([]),
     });
-    const ingArr = this.ingredients(partIndex);
-    ingArr.push(ingGroup);
+    this.ingredients(partIndex).push(ingGroup);
   }
 
   removeIngredient(partIndex: number, ingredientIndex: number): void {
     this.ingredients(partIndex).removeAt(ingredientIndex);
   }
+
+  /** Auto-calculated percentage for an ingredient based on weights. */
+  ingredientPercentage(partIndex: number, ingredientIndex: number): number {
+    const ings = this.ingredients(partIndex);
+    if (ings.length === 0) return 0;
+    const totalWeight = ings.controls.reduce((sum, c) => sum + (c.get('weight')?.value || 0), 0);
+    if (totalWeight === 0) return 0;
+    const w = ings.at(ingredientIndex).get('weight')?.value || 0;
+    return (w / totalWeight) * 100;
+  }
+
+  // ─── Steps ───
 
   addStep(): void {
     const stepGroup = this.fb.group({
@@ -204,15 +204,15 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
 
   removeStep(index: number): void {
     this.steps.removeAt(index);
-    // Re-number remaining steps
     this.steps.controls.forEach((ctrl, i) => {
       ctrl.get('step_no')?.setValue(i + 1, { emitEvent: false });
     });
   }
 
+  // ─── Dosing Actions ───
+
   addDosingAction(partIndex: number, ingredientIndex: number): void {
     const daGroup = this.fb.group({
-      // Store step index reference (-1 = unselected)
       step_ref: [-1, Validators.min(-1)],
       use_ratio: [100, [Validators.required, Validators.min(0), Validators.max(100)]],
       dosing_order: [1, [Validators.required, Validators.min(1)]],
@@ -225,63 +225,39 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
     this.dosingActions(partIndex, ingredientIndex).removeAt(daIndex);
   }
 
-  // ─── Percentage Sum ───
-
-  private recalcPercentageSum(partIndex: number, ingArr: FormArray): void {
-    const sum = ingArr.controls.reduce((acc, ctrl) => {
-      const pct = ctrl.get('percentage')?.value ?? 0;
-      return acc + Number(pct);
-    }, 0);
-    this.percentageSums.set(partIndex, sum);
-  }
-
-  getPercentageSum(partIndex: number): number {
-    return this.percentageSums.get(partIndex) ?? 0;
-  }
-
-  isPercentageValid(partIndex: number): boolean {
-    const sum = this.getPercentageSum(partIndex);
-    return Math.abs(sum - 100) <= 0.1;
-  }
-
-  hasIngredients(partIndex: number): boolean {
-    return this.ingredients(partIndex).length > 0;
-  }
-
-  // ─── Data Loading (Edit Mode) ───
+  // ─── Load (Edit) ───
 
   private loadFormula(id: string): void {
     this.loading = true;
-    this.api.getFormula(id).subscribe({
+    const sub = this.api.getFormula(id).subscribe({
       next: (formula) => {
         this.populateForm(formula);
         this.loading = false;
       },
       error: (err) => {
         this.loading = false;
-        this.snackBar.open(`加载配方失败: ${err.message || '未知错误'}`, '关闭', { duration: 5000 });
+        this.snackBar.open(`加载配方失败: ${extractErrorMessage(err)}`, '关闭', { duration: 5000 });
       },
     });
+    this.subs.add(sub);
   }
 
   private populateForm(formula: Formula): void {
+    this.savedCode = formula.code;
     this.form.patchValue({
       name: formula.name,
-      code: formula.code,
       component_mode: formula.component_mode,
       status: formula.status,
     });
 
-    // Clear defaults added in create mode
+    // Clear current parts and rebuild from data
     while (this.parts.length) this.parts.removeAt(0);
     while (this.steps.length) this.steps.removeAt(0);
 
-    // Populate parts with ingredients and dosing actions
-    formula.parts.forEach((part, pIdx) => {
+    formula.parts.forEach((part) => {
       const partGroup = this.fb.group({
-        name: [part.name, Validators.required],
+        name: [part.name],
         mix_ratio: [part.mix_ratio, [Validators.required, Validators.min(0), Validators.max(100)]],
-        sort_order: [part.sort_order],
         ingredients: this.fb.array([]),
       });
 
@@ -290,7 +266,6 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
         const daArr = this.fb.array(
           (ing.dosing_actions || []).map((da) =>
             this.fb.group({
-              // Find matching step index
               step_ref: [this.findStepRef(formula.steps, da.step_id), Validators.min(-1)],
               use_ratio: [da.use_ratio, [Validators.required, Validators.min(0), Validators.max(100)]],
               dosing_order: [da.dosing_order, [Validators.required, Validators.min(1)]],
@@ -302,7 +277,6 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
         ingArr.push(
           this.fb.group({
             material: [ing.material, [Validators.required, Validators.maxLength(200)]],
-            percentage: [ing.percentage, [Validators.required, Validators.min(0), Validators.max(100)]],
             weight: [ing.weight, [Validators.min(0)]],
             dosing_actions: daArr,
           }),
@@ -310,13 +284,8 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
       });
 
       this.parts.push(partGroup);
-      this.subs.add(
-        ingArr.valueChanges.subscribe(() => this.recalcPercentageSum(pIdx, ingArr)),
-      );
-      this.recalcPercentageSum(pIdx, ingArr);
     });
 
-    // Populate steps
     formula.steps.forEach((step) => {
       this.steps.push(
         this.fb.group({
@@ -343,16 +312,6 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Additional validation: check percentage sums
-    for (let i = 0; i < this.parts.length; i++) {
-      if (!this.isPercentageValid(i)) {
-        this.snackBar.open(`配料百分比总和必须为100%（当前: ${this.getPercentageSum(i).toFixed(1)}%）`, '关闭', {
-          duration: 5000,
-        });
-        return;
-      }
-    }
-
     this.loading = true;
     const payload = this.buildPayload();
 
@@ -360,7 +319,7 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
       ? this.api.updateFormula(this.formulaId!, payload)
       : this.api.createFormula(payload);
 
-    request$.subscribe({
+    const sub = request$.subscribe({
       next: (formula) => {
         this.loading = false;
         this.snackBar.open(
@@ -372,96 +331,88 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.loading = false;
-        const msg = err?.error?.message || err?.message || '保存失败';
-        this.snackBar.open(`保存失败: ${msg}`, '关闭', { duration: 5000 });
+        this.snackBar.open(`保存失败: ${extractErrorMessage(err)}`, '关闭', { duration: 5000 });
       },
     });
+    this.subs.add(sub);
   }
 
   onCancel(): void {
     this.cancelled.emit();
   }
 
-  private buildPayload(): Partial<Formula> {
+  private buildPayload(): Record<string, unknown> {
     const raw = this.form.getRawValue();
 
-    const mappedParts: any[] = raw.parts.map((p: any, pIdx: number) => ({
-      name: p.name,
-      mix_ratio: p.mix_ratio,
-      sort_order: pIdx,
-      ingredients: (p.ingredients || []).map((ing: any) => ({
-        material: ing.material,
-        percentage: ing.percentage,
-        weight: ing.weight,
-        sort_order: 0,
-        dosing_actions: (ing.dosing_actions || [])
-          .filter((da: any) => da.step_ref >= 0)
-          .map((da: any) => ({
-            dosing_order: da.dosing_order,
-            use_ratio: da.use_ratio,
-            dosing_method: da.dosing_method,
-            _step_no: raw.steps[da.step_ref]?.step_no ?? null,
-          })),
-      })),
-    }));
+    const mappedParts = raw.parts.map((p: Record<string, unknown>, pIdx: number) => {
+      const ingredients = (p['ingredients'] as Array<Record<string, unknown>> || []).map((ing) => {
+        const dosing_actions = (ing['dosing_actions'] as Array<Record<string, unknown>> || [])
+          .filter((da) => (da['step_ref'] as number) >= 0)
+          .map((da) => ({
+            dosing_order: da['dosing_order'],
+            use_ratio: da['use_ratio'],
+            dosing_method: da['dosing_method'],
+            _step_no: (raw.steps as Array<Record<string, unknown>>)[da['step_ref'] as number]?.['step_no'] ?? null,
+          }));
+        return {
+          material: ing['material'],
+          percentage: ing['weight'] ?? 0,
+          weight: ing['weight'] ?? 0,
+          dosing_actions,
+        };
+      });
+      return {
+        name: p['name'],
+        mix_ratio: p['mix_ratio'],
+        sort_order: pIdx,
+        ingredients,
+      };
+    });
 
-    const mappedSteps: any[] = raw.steps.map((s: any, sIdx: number) => ({
-      step_no: s.step_no,
-      name: s.name,
-      temperature: s.temperature,
-      duration: s.duration,
+    const mappedSteps = raw.steps.map((s: Record<string, unknown>, sIdx: number) => ({
+      step_no: s['step_no'],
+      name: s['name'],
+      temperature: s['temperature'],
+      duration: s['duration'],
       sort_order: sIdx,
     }));
 
     return {
       name: raw.name,
-      code: raw.code,
       component_mode: raw.component_mode,
       status: raw.status,
       parts: mappedParts,
       steps: mappedSteps,
-    } as Partial<Formula>;
+      ...(this.savedCode ? { code: this.savedCode } : {}),
+    };
   }
 
-  // ─── Template Helper Methods ───
+  // ─── Template helpers ───
 
-  /** Get the name FormControl for a part group. */
-  getPartNameControl(part: AbstractControl): FormControl {
-    return part.get('name') as FormControl;
-  }
-
-  /** Get the mix_ratio FormControl for a part group. */
   getPartMixRatioControl(part: AbstractControl): FormControl {
     return part.get('mix_ratio') as FormControl;
   }
 
-  /** Get a specific FormControl from an ingredient group. */
   getIngControl(ing: AbstractControl, field: string): FormControl {
     return ing.get(field) as FormControl;
   }
 
-  /** Get a specific FormControl from a dosing action group. */
   getDaControl(da: AbstractControl, field: string): FormControl {
     return da.get(field) as FormControl;
   }
 
-  /** Get a specific FormControl from a step group. */
   getStepControl(step: AbstractControl, field: string): FormControl {
     return step.get(field) as FormControl;
   }
 
-  /** Returns the step numbers as an array for mat-select options. */
+  getModeLabel = getModeLabel;
+  getStatusLabel = getStatusLabel;
+  getPartNameLabel = getPartNameLabel;
+
   get stepOptions(): { index: number; label: string }[] {
     return this.steps.controls.map((ctrl, idx) => ({
       index: idx,
       label: `步骤 ${ctrl.get('step_no')?.value ?? idx + 1}: ${ctrl.get('name')?.value || '(未命名)'}`,
     }));
-  }
-
-  /** Determines default part arrangement based on component mode. */
-  get expectedParts(): PartName[] {
-    return this.form?.get('component_mode')?.value === 'double'
-      ? ['PartA', 'PartB']
-      : ['PartMain'];
   }
 }

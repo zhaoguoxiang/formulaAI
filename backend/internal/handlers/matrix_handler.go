@@ -71,20 +71,19 @@ type matrixDosingActionResponse struct {
 func (h *MatrixHandler) HandleMatrix(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	formulas, err := h.repo.List(ctx, h.db)
+	// Optional component_mode filter — pushed to SQL layer
+	modeFilter := c.Query("component_mode")
+
+	formulas, err := h.repo.List(ctx, h.db, repository.ListOptions{
+		ComponentMode: modeFilter,
+	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		serverError(c, "failed to load matrix", err)
 		return
 	}
 
-	// Optional component_mode filter
-	modeFilter := c.Query("component_mode")
-
 	result := make([]matrixFormulaResponse, 0, len(formulas))
 	for _, f := range formulas {
-		if modeFilter != "" && string(f.ComponentMode) != modeFilter {
-			continue
-		}
 		result = append(result, restructureFormula(f))
 	}
 

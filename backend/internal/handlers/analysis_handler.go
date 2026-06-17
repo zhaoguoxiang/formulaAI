@@ -40,7 +40,7 @@ func (h *AnalysisHandler) IngredientDistribution(c *gin.Context) {
 		 ORDER BY count DESC`,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		serverError(c, "analysis query failed", err)
 		return
 	}
 	defer rows.Close()
@@ -49,13 +49,13 @@ func (h *AnalysisHandler) IngredientDistribution(c *gin.Context) {
 	for rows.Next() {
 		var item IngredientDistributionItem
 		if err := rows.Scan(&item.Material, &item.Count, &item.AvgPercentage); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			serverError(c, "analysis query failed", err)
 			return
 		}
 		results = append(results, item)
 	}
 	if err := rows.Err(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		serverError(c, "analysis query failed", err)
 		return
 	}
 
@@ -90,7 +90,7 @@ func (h *AnalysisHandler) ComponentModeRatio(c *gin.Context) {
 		 ORDER BY count DESC`,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		serverError(c, "analysis query failed", err)
 		return
 	}
 	defer rows.Close()
@@ -99,13 +99,13 @@ func (h *AnalysisHandler) ComponentModeRatio(c *gin.Context) {
 	for rows.Next() {
 		var item ComponentModeRatioItem
 		if err := rows.Scan(&item.Mode, &item.Count, &item.Percentage); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			serverError(c, "analysis query failed", err)
 			return
 		}
 		results = append(results, item)
 	}
 	if err := rows.Err(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		serverError(c, "analysis query failed", err)
 		return
 	}
 
@@ -146,7 +146,7 @@ func (h *AnalysisHandler) StepCountDistribution(c *gin.Context) {
 		 ORDER BY range`,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		serverError(c, "analysis query failed", err)
 		return
 	}
 	defer rows.Close()
@@ -155,13 +155,13 @@ func (h *AnalysisHandler) StepCountDistribution(c *gin.Context) {
 	for rows.Next() {
 		var item StepCountDistributionItem
 		if err := rows.Scan(&item.Range, &item.Count); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			serverError(c, "analysis query failed", err)
 			return
 		}
 		results = append(results, item)
 	}
 	if err := rows.Err(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		serverError(c, "analysis query failed", err)
 		return
 	}
 
@@ -194,7 +194,7 @@ func (h *AnalysisHandler) DosingMethodStats(c *gin.Context) {
 		 ORDER BY count DESC`,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		serverError(c, "analysis query failed", err)
 		return
 	}
 	defer rows.Close()
@@ -203,13 +203,13 @@ func (h *AnalysisHandler) DosingMethodStats(c *gin.Context) {
 	for rows.Next() {
 		var item DosingMethodStatsItem
 		if err := rows.Scan(&item.Method, &item.Count); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			serverError(c, "analysis query failed", err)
 			return
 		}
 		results = append(results, item)
 	}
 	if err := rows.Err(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		serverError(c, "analysis query failed", err)
 		return
 	}
 

@@ -1,15 +1,20 @@
-FROM node:20-alpine
+FROM node:24-alpine
 
-RUN npm install -g @angular/cli@17
+RUN npm install -g @angular/cli@22
+
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
+RUN chown -R appuser:appgroup /app
+
+USER appuser
 
 RUN npm install
 
-COPY . .
+COPY --chown=appuser:appgroup . .
 
 EXPOSE 4200
 
-CMD ["ng", "serve", "--host", "0.0.0.0", "--port", "4200", "--disable-host-check"]
+CMD ["ng", "serve", "--host", "0.0.0.0", "--port", "4200"]

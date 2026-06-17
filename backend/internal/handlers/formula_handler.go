@@ -3,8 +3,12 @@ package handlers
 import (
 	"database/sql"
 	"errors"
+	"fmt"
+	"log/slog"
+	"math/rand"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -45,28 +49,33 @@ func (h *FormulaHandler) CreateFormula(c *gin.Context) {
 		return
 	}
 
+	// Auto-generate code if empty: FML-YYMMDD-XXXX
+	if f.Code == "" {
+		f.Code = generateFormulaCode()
+	}
+
 	// Business-level validation
 	if err := services.ValidateAndPrepare(&f); err != nil {
 		var ve *services.ValidationError
 		if errors.As(err, &ve) {
 			if ve.IsBlocking() {
 				c.JSON(http.StatusUnprocessableEntity, gin.H{
-					"error":   "validation failed",
-					"details": ve.Error(),
-					"errors":  ve.Errors,
+					"error":    "validation failed",
+					"details":  ve.Error(),
+					"errors":   ve.Errors,
 					"warnings": ve.Warnings,
 				})
 				return
 			}
-			// warnings only – log but proceed
+			// Log non-blocking validation warnings
+			for _, w := range ve.Warnings {
+				slog.Warn("formula validation warning", "warning", w)
+			}
 		}
 	}
 
 	if err := h.repo.Create(c.Request.Context(), h.db, &f); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "failed to create formula",
-			"details": err.Error(),
-		})
+		serverError(c, "failed to create formula", err)
 		return
 	}
 
@@ -80,12 +89,9 @@ func (h *FormulaHandler) CreateFormula(c *gin.Context) {
 // ListFormulas handles GET /api/formulas. Returns all formulas with their
 // nested data as a JSON array.
 func (h *FormulaHandler) ListFormulas(c *gin.Context) {
-	formulas, err := h.repo.List(c.Request.Context(), h.db)
+	formulas, err := h.repo.List(c.Request.Context(), h.db, repository.ListOptions{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "failed to list formulas",
-			"details": err.Error(),
-		})
+		serverError(c, "failed to list formulas", err)
 		return
 	}
 
@@ -116,10 +122,7 @@ func (h *FormulaHandler) GetFormula(c *gin.Context) {
 			})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "failed to get formula",
-			"details": err.Error(),
-		})
+		serverError(c, "failed to get formula", err)
 		return
 	}
 
@@ -166,12 +169,15 @@ func (h *FormulaHandler) UpdateFormula(c *gin.Context) {
 		if errors.As(err, &ve) {
 			if ve.IsBlocking() {
 				c.JSON(http.StatusUnprocessableEntity, gin.H{
-					"error":   "validation failed",
-					"details": ve.Error(),
-					"errors":  ve.Errors,
+					"error":    "validation failed",
+					"details":  ve.Error(),
+					"errors":   ve.Errors,
 					"warnings": ve.Warnings,
 				})
 				return
+			}
+			for _, w := range ve.Warnings {
+				slog.Warn("formula validation warning", "warning", w)
 			}
 		}
 	}
@@ -183,10 +189,7 @@ func (h *FormulaHandler) UpdateFormula(c *gin.Context) {
 			})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "failed to update formula",
-			"details": err.Error(),
-		})
+		serverError(c, "failed to update formula", err)
 		return
 	}
 
@@ -216,10 +219,7 @@ func (h *FormulaHandler) DeleteFormula(c *gin.Context) {
 			})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "failed to delete formula",
-			"details": err.Error(),
-		})
+		serverError(c, "failed to delete formula", err)
 		return
 	}
 
@@ -229,6 +229,18 @@ func (h *FormulaHandler) DeleteFormula(c *gin.Context) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+// generateFormulaCode creates an auto-generated code in format FML-YYMMDD-XXXX.
+func generateFormulaCode() string {
+	now := time.Now()
+	dateStr := fmt.Sprintf("%02d%02d%02d", now.Year()%100, now.Month(), now.Day())
+	chars := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	suffix := make([]byte, 4)
+	for i := range suffix {
+		suffix[i] = chars[rand.Intn(len(chars))]
+	}
+	return fmt.Sprintf("FML-%s-%s", dateStr, string(suffix))
+}
 
 // isNotFound checks whether an error indicates that a requested resource was
 // not found (i.e. sql.ErrNoRows or a "not found" message from the repo).

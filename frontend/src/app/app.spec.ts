@@ -32,25 +32,25 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    const toolbar = compiled.querySelector('.app-toolbar');
+    const toolbar = compiled.querySelector('mat-toolbar');
     expect(toolbar).toBeTruthy();
-    const title = compiled.querySelector('.toolbar-title');
+    const title = compiled.querySelector('.app-title');
     expect(title?.textContent).toContain('FormulAI');
   });
 
-  it('should render the split layout with workspace and chat panels', () => {
+  it('should render the split layout with main content and sidebar', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
 
-    const workspacePanel = compiled.querySelector('.workspace-panel');
-    expect(workspacePanel).toBeTruthy();
+    const mainPanel = compiled.querySelector('.app-main');
+    expect(mainPanel).toBeTruthy();
 
-    const chatPanel = compiled.querySelector('.chat-panel');
-    expect(chatPanel).toBeTruthy();
+    const sidebar = compiled.querySelector('.app-sidebar');
+    expect(sidebar).toBeTruthy();
   });
 
-  it('should render workspace tab group with 3 tabs', () => {
+  it('should render tab group with 4 tabs', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
@@ -58,9 +58,8 @@ describe('App', () => {
     const tabGroup = compiled.querySelector('mat-tab-group');
     expect(tabGroup).toBeTruthy();
 
-    // mat-tab creates role="tab" elements
     const tabElements = compiled.querySelectorAll('[role="tab"]');
-    expect(tabElements.length).toBe(3);
+    expect(tabElements.length).toBe(4);
   });
 
   it('should render the chat panel component', () => {
@@ -72,12 +71,12 @@ describe('App', () => {
     expect(chatPanel).toBeTruthy();
   });
 
-  it('should render workspace card with modern styling', () => {
+  it('should render the main card container', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
 
-    const workspaceCard = compiled.querySelector('.workspace-card');
-    expect(workspaceCard).toBeTruthy();
+    const mainCard = compiled.querySelector('mat-card');
+    expect(mainCard).toBeTruthy();
   });
 });

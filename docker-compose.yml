@@ -3,15 +3,15 @@ services:
     image: postgres:16-alpine
     container_name: formula-postgres
     environment:
-      POSTGRES_USER: ${DB_USER:-formula}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      POSTGRES_USER: ${DB_USER:?err}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?err}
       POSTGRES_DB: ${DB_NAME:-formula_ai}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-formula} -d ${DB_NAME:-formula_ai}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME:-formula_ai}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -19,22 +19,28 @@ services:
     networks:
       - formula-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: formula-backend
-    dns:
-      - 127.0.0.11
     environment:
       DB_HOST: postgres
       DB_PORT: ${DB_PORT:-5432}
-      DB_USER: ${DB_USER:-formula}
-      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      DB_USER: ${DB_USER:?err}
+      DB_PASSWORD: ${DB_PASSWORD:?err}
       DB_NAME: ${DB_NAME:-formula_ai}
       SERVER_PORT: "8080"
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      CORS_ORIGINS: "*"
+    volumes:
+      - uploads_data:/app/uploads
     ports:
       - "8080:8080"
     healthcheck:
@@ -49,18 +55,22 @@ services:
     networks:
       - formula-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: formula-frontend
-    dns:
-      - 127.0.0.11
     ports:
-      - "${FRONTEND_PORT:-8081}:80"
+      - "${FRONTEND_PORT:-8081}:8080"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:80/health | grep -q ok"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health | grep -q ok"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -71,6 +81,12 @@ services:
     networks:
       - formula-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
 
   copilotkit-runtime:
     build:
@@ -79,9 +95,7 @@ services:
     container_name: formula-copilotkit
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      BACKEND_URL: http://backend:8080
-    ports:
-      - "3001:3001"
+      GO_API_URL: http://backend:8080
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/health || exit 1"]
       interval: 10s
@@ -94,9 +108,17 @@ services:
     networks:
       - formula-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
 volumes:
   pgdata:
+    driver: local
+  uploads_data:
     driver: local
 
 networks:

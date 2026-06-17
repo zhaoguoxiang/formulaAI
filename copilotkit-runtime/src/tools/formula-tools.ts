@@ -16,6 +16,7 @@ async function callGoApi(
   try {
     res = await fetch(url, {
       ...options,
+      signal: AbortSignal.timeout(15_000),
       headers: {
         "Content-Type": "application/json",
         ...options?.headers,

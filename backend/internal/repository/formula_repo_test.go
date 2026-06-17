@@ -280,7 +280,7 @@ func TestFormulaRepo_List_Empty(t *testing.T) {
 	ctx := context.Background()
 	repo := NewFormulaRepo()
 
-	formulas, err := repo.List(ctx, db)
+	formulas, err := repo.List(ctx, db, ListOptions{})
 	if err != nil {
 		t.Fatalf("List() error: %v", err)
 	}
@@ -307,7 +307,7 @@ func TestFormulaRepo_List_Multiple(t *testing.T) {
 		t.Fatalf("Create f2: %v", err)
 	}
 
-	formulas, err := repo.List(ctx, db)
+	formulas, err := repo.List(ctx, db, ListOptions{})
 	if err != nil {
 		t.Fatalf("List() error: %v", err)
 	}

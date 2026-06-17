@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { animate, state, style, transition, trigger } from '@angular/animations';
 
@@ -13,23 +14,14 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { FormulaApiService } from '../../services/formula-api.service';
-import {
-  Formula,
-  FormulaPart,
-  FormulaIngredient,
-  ComponentMode,
-  FormulaStatus,
-} from '../../types/formula.types';
+import { Formula, FormulaPart, ComponentMode, FormulaStatus } from '../../types/formula.types';
+import { getModeClass, getModeLabel, getStatusLabel, getPartNameLabel, getPartNameClass } from '../../utils/formula-labels';
+import { extractErrorMessage } from '../../utils/error.utils';
 
-/**
- * Cross-tabulation matrix table showing formulas with expandable rows
- * that reveal nested parts, ingredients, and steps.
- *
- * Filterable by component_mode (All / Single / Double).
- */
 @Component({
   selector: 'app-formula-matrix',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     MatTableModule,
@@ -43,7 +35,7 @@ import {
     MatTooltipModule,
   ],
   templateUrl: './formula-matrix.component.html',
-  styleUrl: './formula-matrix.component.css',
+  styleUrl: './formula-matrix.component.scss',
   animations: [
     trigger('detailExpand', [
       state('collapsed, void', style({ height: '0px', minHeight: '0', visibility: 'hidden', overflow: 'hidden' })),
@@ -52,24 +44,17 @@ import {
     ]),
   ],
 })
-export class FormulaMatrixComponent implements OnInit {
-  /* ── Table configuration ── */
+export class FormulaMatrixComponent implements OnInit, OnDestroy {
+  private readonly formulaApi = inject(FormulaApiService);
+  private readonly destroyRef = inject(DestroyRef);
+
   readonly displayedColumns: string[] = [
-    'expand',
-    'code',
-    'name',
-    'component_mode',
-    'parts_count',
-    'steps_count',
-    'status',
+    'expand', 'code', 'name', 'component_mode', 'parts_count', 'steps_count', 'status',
   ];
 
   dataSource = new MatTableDataSource<Formula>([]);
-
-  /** The currently expanded formula (only one row expanded at a time). */
   expandedElement: Formula | null = null;
 
-  /* ── Filter ── */
   readonly modeOptions: { value: string; label: string }[] = [
     { value: '', label: '所有配方' },
     { value: 'single', label: '单组分' },
@@ -77,18 +62,14 @@ export class FormulaMatrixComponent implements OnInit {
   ];
 
   selectedMode = '';
-
-  /* ── State ── */
   loading = false;
   error: string | null = null;
-
-  constructor(private readonly formulaApi: FormulaApiService) {}
 
   ngOnInit(): void {
     this.loadMatrix();
   }
 
-  /* ── Data loading ── */
+  ngOnDestroy(): void {}
 
   loadMatrix(): void {
     this.loading = true;
@@ -96,32 +77,28 @@ export class FormulaMatrixComponent implements OnInit {
     this.expandedElement = null;
 
     const mode = this.selectedMode || undefined;
-    this.formulaApi.getFormulaMatrix(mode).subscribe({
-      next: (matrix) => {
-        this.dataSource.data = matrix.formulas ?? [];
-        this.loading = false;
-      },
-      error: (err) => {
-        // eslint-disable-next-line no-console
-        console.error('[FormulaMatrix] Failed to load matrix', err);
-        this.error = err?.message ?? '加载配方数据失败，请检查后端服务';
-        this.loading = false;
-        this.dataSource.data = [];
-      },
-    });
+    this.formulaApi.getFormulaMatrix(mode)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (matrix) => {
+          this.dataSource.data = matrix.formulas ?? [];
+          this.loading = false;
+        },
+        error: (err) => {
+          console.error('[FormulaMatrix] Failed to load matrix', err);
+          this.error = extractErrorMessage(err, '加载配方数据失败，请检查后端服务');
+          this.loading = false;
+          this.dataSource.data = [];
+        },
+      });
   }
-
-  /* ── Filter ── */
 
   onModeFilterChange(event: MatButtonToggleChange): void {
     this.selectedMode = event.value;
     this.loadMatrix();
   }
 
-  /* ── Row expansion ── */
-
   toggleRow(formula: Formula): void {
-    // Close if clicking the same row; otherwise open the new one
     this.expandedElement = this.expandedElement === formula ? null : formula;
   }
 
@@ -129,42 +106,11 @@ export class FormulaMatrixComponent implements OnInit {
     return this.expandedElement === formula;
   }
 
-  /* ── Display helpers ── */
-
-  getModeLabel(mode: ComponentMode): string {
-    return mode === 'single' ? '单组分' : '双组分';
-  }
-
-  getModeClass(mode: ComponentMode): string {
-    return mode === 'single' ? 'mode-single' : 'mode-double';
-  }
-
-  getStatusLabel(status: FormulaStatus): string {
-    const map: Record<FormulaStatus, string> = {
-      draft: '草稿',
-      active: '已启用',
-      archived: '已归档',
-    };
-    return map[status] ?? status;
-  }
-
-  getPartNameLabel(name: string): string {
-    const map: Record<string, string> = {
-      PartA: 'A 组分',
-      PartB: 'B 组分',
-      PartMain: '主组分',
-    };
-    return map[name] ?? name;
-  }
-
-  getPartNameClass(name: string): string {
-    const map: Record<string, string> = {
-      PartA: 'part-a',
-      PartB: 'part-b',
-      PartMain: 'part-main',
-    };
-    return map[name] ?? '';
-  }
+  getModeLabel = getModeLabel;
+  getStatusLabel = getStatusLabel;
+  getPartNameLabel = getPartNameLabel;
+  getModeClass = getModeClass;
+  getPartNameClass = getPartNameClass;
 
   getIngredientCount(parts: FormulaPart[]): number {
     return parts.reduce((sum, p) => sum + (p.ingredients?.length ?? 0), 0);
