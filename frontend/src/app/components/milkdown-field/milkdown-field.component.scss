@@ -73,20 +73,4 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :host ::ng-deep .vditor {
-    --toolbar-background-color: var(--mat-sys-surface-container-low, #1D1B1E);
-    --textarea-background-color: var(--mat-sys-surface, #151316);
-    --textarea-text-color: var(--mat-sys-on-surface, #E6E1E5);
-
-    background-color: var(--mat-sys-surface, #151316);
-
-    .vditor-content,
-    .vditor-reset,
-    .vditor-ir,
-    textarea {
-      background-color: var(--mat-sys-surface, #151316);
-      color: var(--mat-sys-on-surface, #E6E1E5);
-    }
-  }
-}
+/* Dark theme handled by .dark-theme M3 token overrides in styles.scss */

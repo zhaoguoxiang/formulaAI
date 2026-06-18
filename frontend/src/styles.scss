@@ -120,23 +120,24 @@ $formulai-palette: (
 );
 
 /* ── M3 Theme ──
-   Generates all --mat-sys-*, --mat-sys-typescale-*,
-   --mat-sys-shape-*, --mat-sys-elevation-*, --mat-sys-motion-*,
-   and --mat-sys-state-* CSS custom properties. */
+   Generates --mat-sys-* tokens using CSS light-dark() function.
+   Default color-scheme is light; .dark-theme sets it to dark. */
+html {
+  color-scheme: light;
+  @include mat.theme((
+    color: (
+      primary: $formulai-palette,
+      tertiary: mat.$rose-palette,
+    ),
+    typography: 'DM Sans, Roboto, sans-serif',
+    density: 0,
+  ));
 
-@include mat.theme((
-  color: (
-    primary: $formulai-palette,
-    tertiary: mat.$rose-palette,
-  ),
-  typography: 'DM Sans, Roboto, sans-serif',
-  density: 0,
-));
-
-/* ── M3 System Utility Classes ──
-   Enables .mat-primary, .mat-secondary, .mat-tertiary,
-   .mat-error, .mat-surface, etc. on any element. */
-@include mat.system-classes();
+  /* ── M3 System Utility Classes ──
+     Enables .mat-primary, .mat-secondary, .mat-tertiary,
+     .mat-error, .mat-surface, etc. on any element. */
+  @include mat.system-classes();
+}
 
 /* ═══ App-Level Spacing Tokens (M3 8dp Grid) ═══ */
 :root {
@@ -209,7 +210,6 @@ $formulai-palette: (
 
 html {
   font-size: 16px;
-  color-scheme: light dark;
 }
 
 body {
@@ -371,6 +371,7 @@ mat-card-content {
   .section-icon {
     color: var(--mat-sys-primary, #6750A4);
   }
+}
 
 /* ═══ Skeleton Loaders ═══ */
 
@@ -492,21 +493,15 @@ mat-card-content {
   }
 }
 
-/* ═══ Dark Theme Overrides ═══ */
+/* ═══ Dark Theme — Color Scheme & Scrollbar ═══ */
 .dark-theme {
   color-scheme: dark;
 
-  body {
-    background: var(--mat-sys-surface, #141218);
-    color: var(--mat-sys-on-surface, #E6E1E5);
-  }
-
   ::-webkit-scrollbar-thumb {
-    background: var(--mat-sys-outline-variant, #49454F);
+    background: var(--mat-sys-outline-variant);
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--mat-sys-outline, #938F99);
+    background: var(--mat-sys-outline);
   }
-}
 }
