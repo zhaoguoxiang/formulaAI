@@ -54,6 +54,8 @@ const SUGGESTIONS = [
 export class ChatPanelComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly snackBar = inject(MatSnackBar);
+  // TODO: Make this configurable via environment or proxy for production deployments.
+  // Currently points to local CopilotKit Python runtime.
   private readonly pythonChatUrl = 'http://localhost:5050/api/chat';
 
   readonly messages = signal<ChatMessage[]>([]);

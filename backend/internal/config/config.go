@@ -22,13 +22,13 @@ type Config struct {
 // Returns an error if any required variable is missing or invalid.
 func LoadConfig() (*Config, error) {
 	cfg := &Config{
-		DBHost:     getEnv("DB_HOST", "localhost"),
-		DBPort:     getEnv("DB_PORT", "5432"),
-		DBUser:     getEnv("DB_USER", "formula"),
-		DBPassword: getEnv("DB_PASSWORD", ""),
-		DBName:     getEnv("DB_NAME", "formula_ai"),
-		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
-		ServerPort: getEnv("SERVER_PORT", "8080"),
+		DBHost:     GetEnv("DB_HOST", "localhost"),
+		DBPort:     GetEnv("DB_PORT", "5432"),
+		DBUser:     GetEnv("DB_USER", "formula"),
+		DBPassword: GetEnv("DB_PASSWORD", ""),
+		DBName:     GetEnv("DB_NAME", "formula_ai"),
+		DBSSLMode:  GetEnv("DB_SSLMODE", "require"),
+		ServerPort: GetEnv("SERVER_PORT", "8080"),
 	}
 
 	if err := cfg.validate(); err != nil {
@@ -88,8 +88,8 @@ func validatePort(port string) error {
 	return nil
 }
 
-// getEnv returns the value of an environment variable, or a fallback if not set.
-func getEnv(key, fallback string) string {
+// GetEnv returns the value of an environment variable, or a fallback if not set.
+func GetEnv(key, fallback string) string {
 	if val, ok := os.LookupEnv(key); ok && val != "" {
 		return val
 	}

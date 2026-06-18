@@ -39,6 +39,7 @@ import { extractErrorMessage } from '../../utils/error.utils';
 })
 export class FormulaEditorComponent implements OnInit, OnDestroy {
   @Input() formulaId: string | null = null;
+  @Input() isMaterialMode = false;
   @Output() saved = new EventEmitter<Formula>();
   @Output() cancelled = new EventEmitter<void>();
 
@@ -95,8 +96,9 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
   private buildForm(): void {
     this.form = this.fb.group({
       name: ['', [Validators.required, Validators.maxLength(200)]],
-      component_mode: ['single', Validators.required],
+      component_mode: [{ value: 'single', disabled: this.isMaterialMode }, Validators.required],
       status: ['draft', Validators.required],
+      labels: [[]],
       parts: this.fb.array([]),
       steps: this.fb.array([]),
     });
@@ -105,10 +107,10 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
   private syncPartsForMode(mode: string): void {
     while (this.parts.length) this.parts.removeAt(0);
     if (mode === 'double') {
-      this.parts.push(this.fb.group({ name: ['PartA'], categories: this.fb.array([]) }));
-      this.parts.push(this.fb.group({ name: ['PartB'], categories: this.fb.array([]) }));
+      this.parts.push(this.fb.group({ name: ['PartA'], batch_no: [''], categories: this.fb.array([]) }));
+      this.parts.push(this.fb.group({ name: ['PartB'], batch_no: [''], categories: this.fb.array([]) }));
     } else {
-      this.parts.push(this.fb.group({ name: ['PartMain'], categories: this.fb.array([]) }));
+      this.parts.push(this.fb.group({ name: ['PartMain'], batch_no: [''], categories: this.fb.array([]) }));
     }
   }
 
@@ -263,7 +265,10 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
 
   private populateForm(formula: Formula): void {
     this.savedCode = formula.code;
-    this.form.patchValue({ name: formula.name, component_mode: formula.component_mode, status: formula.status });
+    this.form.patchValue({
+      name: formula.name, component_mode: formula.component_mode, status: formula.status,
+      labels: formula.labels || [],
+    });
     while (this.parts.length) this.parts.removeAt(0);
     while (this.steps.length) this.steps.removeAt(0);
 
@@ -275,7 +280,7 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
           weight: [ing.weight], unit: [ing.unit || ''], batch_no: [ing.batch_no || ''],
         }))),
       })));
-      this.parts.push(this.fb.group({ name: [p.name], categories: catsArr }));
+      this.parts.push(this.fb.group({ name: [p.name], batch_no: [p.batch_no || ''], categories: catsArr }));
     });
 
     formula.steps.forEach(step => {
@@ -330,9 +335,13 @@ export class FormulaEditorComponent implements OnInit, OnDestroy {
   private buildPayload(): Record<string, unknown> {
     const raw = this.form.getRawValue();
     return {
-      name: raw.name, code: this.savedCode || undefined, component_mode: raw.component_mode, status: raw.status,
+      name: raw.name, code: this.savedCode || undefined,
+      component_mode: raw.component_mode, status: raw.status,
+      formula_type: this.isMaterialMode ? 'material' : 'formula',
+      labels: raw.labels || [],
       parts: (raw.parts as Array<Record<string, unknown>> || []).map((p, i) => ({
         name: p['name'], sort_order: i,
+        batch_no: p['batch_no'] || '',
         categories: (p['categories'] as Array<Record<string, unknown>> || []).map((cat, ci) => ({
           name: cat['name'], sort_order: ci,
           ingredients: (cat['ingredients'] as Array<Record<string, unknown>> || []).map((ing, ii) => ({

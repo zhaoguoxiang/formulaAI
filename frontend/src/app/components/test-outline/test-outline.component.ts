@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal, inject, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, signal, inject, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -66,7 +66,7 @@ interface EditFormData {
   templateUrl: './test-outline.component.html',
   styleUrl: './test-outline.component.scss',
 })
-export class TestOutlineComponent implements OnInit, OnDestroy {
+export class TestOutlineComponent implements OnInit {
   private readonly api = inject(TestOutlineApiService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
@@ -92,8 +92,6 @@ export class TestOutlineComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadOutline();
   }
-
-  ngOnDestroy(): void {}
 
   loadOutline(): void {
     this.loading.set(true);

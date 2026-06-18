@@ -37,6 +37,7 @@ services:
       DB_USER: ${DB_USER:?err}
       DB_PASSWORD: ${DB_PASSWORD:?err}
       DB_NAME: ${DB_NAME:-formula_ai}
+      DB_SSLMODE: disable
       SERVER_PORT: "8080"
       CORS_ORIGINS: "*"
     volumes:

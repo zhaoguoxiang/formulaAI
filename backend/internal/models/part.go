@@ -15,5 +15,7 @@ type FormulaPart struct {
 	FormulaID  uuid.UUID                   `json:"formula_id"  db:"formula_id"`
 	Name       PartName                    `json:"name"        db:"name"`
 	SortOrder  int                         `json:"sort_order"  db:"sort_order"`
+	MaterialID *uuid.UUID                  `json:"material_id" db:"material_id"`
+	BatchNo    string                      `json:"batch_no"    db:"batch_no"`
 	Categories []FormulaIngredientCategory `json:"categories"`
 }

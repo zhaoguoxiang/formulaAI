@@ -1,5 +1,6 @@
 export type ComponentMode = 'single' | 'double';
 export type FormulaStatus = 'draft' | 'active' | 'archived';
+export type FormulaType = 'formula' | 'material';
 export type PartName = 'PartA' | 'PartB' | 'PartMain';
 
 export interface FormulaStepMaterial {
@@ -49,6 +50,8 @@ export interface FormulaPart {
   formula_id: string;
   name: PartName;
   sort_order: number;
+  material_id: string | null;
+  batch_no: string;
   categories: FormulaIngredientCategory[];
 }
 
@@ -77,6 +80,8 @@ export interface Formula {
   code: string;
   component_mode: ComponentMode;
   status: FormulaStatus;
+  formula_type: FormulaType;
+  labels: string[];
   parts: FormulaPart[];
   steps: FormulaStep[];
   created_at: string;
@@ -86,3 +91,6 @@ export interface Formula {
 export interface FormulaMatrix {
   formulas: Formula[];
 }
+
+
+

@@ -20,24 +20,23 @@ describe('FormulaAnalysisComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should render the placeholder card', () => {
-    const card = fixture.debugElement.query(By.css('mat-card'));
-    expect(card).toBeTruthy();
+  it('should display "配方分析" as the hero title', () => {
+    const heroTitle = fixture.debugElement.query(By.css('.hero-title'));
+    expect(heroTitle.nativeElement.textContent).toContain('配方分析');
   });
 
-  it('should display "配方分析" as the card title', () => {
-    const cardTitle = fixture.debugElement.query(By.css('mat-card-title'));
-    expect(cardTitle.nativeElement.textContent).toContain('配方分析');
+  it('should render the analytics icon', () => {
+    const icon = fixture.debugElement.query(By.css('.hero-icon'));
+    expect(icon.nativeElement.textContent).toContain('analytics');
   });
 
-  it('should show the construction icon', () => {
-    const icon = fixture.debugElement.query(By.css('.placeholder-icon'));
-    expect(icon.nativeElement.textContent).toContain('construction');
-  });
-
-  it('should indicate the feature is under construction', () => {
+  it('should indicate the feature uses AI chat', () => {
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain('分析功能建设中');
-    expect(compiled.textContent).toContain('AI 助手');
+    expect(compiled.textContent).toContain('AI 配方助手');
+  });
+
+  it('should render three feature cards', () => {
+    const cards = fixture.debugElement.queryAll(By.css('.feature-card'));
+    expect(cards.length).toBe(3);
   });
 });

@@ -1,7 +1,6 @@
 package database
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -10,19 +9,12 @@ import (
 
 func getTestConfig() *config.Config {
 	return &config.Config{
-		DBHost:     getEnvOrDefault("DB_HOST", "localhost"),
-		DBPort:     getEnvOrDefault("DB_PORT", "5432"),
-		DBUser:     getEnvOrDefault("DB_USER", "formula"),
-		DBPassword: getEnvOrDefault("DB_PASSWORD", "changeme"),
-		DBName:     getEnvOrDefault("DB_NAME", "formula_ai"),
+		DBHost:     config.GetEnv("DB_HOST", "localhost"),
+		DBPort:     config.GetEnv("DB_PORT", "5432"),
+		DBUser:     config.GetEnv("DB_USER", "formula"),
+		DBPassword: config.GetEnv("DB_PASSWORD", "changeme"),
+		DBName:     config.GetEnv("DB_NAME", "formula_ai"),
 	}
-}
-
-func getEnvOrDefault(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
 }
 
 func TestNewPostgresDB_Success(t *testing.T) {

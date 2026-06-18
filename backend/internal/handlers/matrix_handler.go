@@ -70,18 +70,18 @@ type matrixStepParamResponse struct {
 }
 
 // HandleMatrix returns all formulas with a flat restructured view for the
-// frontend matrix table. Dosing actions are moved from ingredients to steps,
-// and ingredient IDs are resolved to material names.
+// frontend matrix table. Supports component_mode and formula_type query params.
 //
-//	GET /api/formulas/matrix?component_mode=single|double
+//	GET /api/formulas/matrix?component_mode=single|double&formula_type=formula|material
 func (h *MatrixHandler) HandleMatrix(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	// Optional component_mode filter — pushed to SQL layer
 	modeFilter := c.Query("component_mode")
+	typeFilter := c.Query("formula_type")
 
 	formulas, err := h.repo.List(ctx, h.db, repository.ListOptions{
 		ComponentMode: modeFilter,
+		FormulaType:   typeFilter,
 	})
 	if err != nil {
 		serverError(c, "failed to load matrix", err)

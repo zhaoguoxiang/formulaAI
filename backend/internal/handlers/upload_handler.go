@@ -42,6 +42,32 @@ func HandleUpload(c *gin.Context) {
 		return
 	}
 
+	// Validate file magic bytes to prevent spoofing Content-Type
+	buf := make([]byte, 512)
+	n, err := file.Read(buf)
+	if err != nil && err != io.EOF {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read file"})
+		return
+	}
+	buf = buf[:n]
+	detectedType := contentTypesDetect(buf)
+	allowedMagic := map[string]bool{
+		"image/png":  true,
+		"image/jpeg": true,
+		"image/gif":  true,
+		"image/webp": true,
+	}
+	if !allowedMagic[detectedType] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file content does not match image format"})
+		return
+	}
+
+	// Seek back to start since multipart.File implements io.Seeker
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to rewind file"})
+		return
+	}
+
 	// Organize by year/month
 	now := time.Now()
 	subDir := filepath.Join(uploadDir, fmt.Sprintf("%04d", now.Year()), fmt.Sprintf("%02d", now.Month()))
@@ -82,4 +108,8 @@ func HandleUpload(c *gin.Context) {
 			"url":         relativeURL,
 		},
 	})
+}
+
+func contentTypesDetect(data []byte) string {
+	return http.DetectContentType(data)
 }

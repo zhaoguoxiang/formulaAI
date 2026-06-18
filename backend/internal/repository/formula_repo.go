@@ -14,6 +14,7 @@ import (
 
 type ListOptions struct {
 	ComponentMode string
+	FormulaType   string
 	Limit         int
 	Offset        int
 }
@@ -39,16 +40,22 @@ func (r *FormulaRepo) Create(ctx context.Context, db *sql.DB, f *models.Formula)
 	f.UpdatedAt = now
 
 	// 1. Insert formula
+	if f.FormulaType == "" {
+		f.FormulaType = models.FormulaTypeFormula
+	}
+	if f.Labels == nil {
+		f.Labels = []string{}
+	}
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO formulas (id, name, code, component_mode, status, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		f.ID, f.Name, f.Code, string(f.ComponentMode), string(f.Status), f.CreatedAt, f.UpdatedAt,
+		`INSERT INTO formulas (id, name, code, component_mode, status, formula_type, labels, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		f.ID, f.Name, f.Code, string(f.ComponentMode), string(f.Status), string(f.FormulaType), pq.Array(f.Labels), f.CreatedAt, f.UpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("insert formula: %w", err)
 	}
 
-	// 2. Insert parts (simplified - no mix_ratio or materials)
+	// 2. Insert parts
 	for pi := range f.Parts {
 		part := &f.Parts[pi]
 		if part.ID == uuid.Nil {
@@ -57,9 +64,9 @@ func (r *FormulaRepo) Create(ctx context.Context, db *sql.DB, f *models.Formula)
 		part.FormulaID = f.ID
 
 		_, err = tx.ExecContext(ctx,
-			`INSERT INTO formula_parts (id, formula_id, name, sort_order)
-			 VALUES ($1, $2, $3, $4)`,
-			part.ID, part.FormulaID, partNameToDB(part.Name), part.SortOrder,
+			`INSERT INTO formula_parts (id, formula_id, name, sort_order, batch_no, material_id)
+			 VALUES ($1, $2, $3, $4, $5, $6)`,
+			part.ID, part.FormulaID, partNameToDB(part.Name), part.SortOrder, part.BatchNo, part.MaterialID,
 		)
 		if err != nil {
 			return fmt.Errorf("insert part %d: %w", pi, err)
@@ -145,11 +152,11 @@ func (r *FormulaRepo) Create(ctx context.Context, db *sql.DB, f *models.Formula)
 
 func (r *FormulaRepo) GetByID(ctx context.Context, db *sql.DB, id uuid.UUID) (*models.Formula, error) {
 	f := &models.Formula{}
-	var componentMode, status string
+	var componentMode, status, formulaType string
 	err := db.QueryRowContext(ctx,
-		`SELECT id, name, code, component_mode, status, created_at, updated_at
+		`SELECT id, name, code, component_mode, status, formula_type, labels, created_at, updated_at
 		 FROM formulas WHERE id = $1`, id,
-	).Scan(&f.ID, &f.Name, &f.Code, &componentMode, &status, &f.CreatedAt, &f.UpdatedAt)
+	).Scan(&f.ID, &f.Name, &f.Code, &componentMode, &status, &formulaType, pq.Array(&f.Labels), &f.CreatedAt, &f.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("formula %s: %w", id, sql.ErrNoRows)
 	}
@@ -158,6 +165,10 @@ func (r *FormulaRepo) GetByID(ctx context.Context, db *sql.DB, id uuid.UUID) (*m
 	}
 	f.ComponentMode = models.ComponentMode(componentMode)
 	f.Status = models.Status(status)
+	f.FormulaType = models.FormulaType(formulaType)
+	if f.Labels == nil {
+		f.Labels = []string{}
+	}
 
 	parts, err := r.queryParts(ctx, db, f.ID)
 	if err != nil {
@@ -176,22 +187,38 @@ func (r *FormulaRepo) GetByID(ctx context.Context, db *sql.DB, id uuid.UUID) (*m
 
 func (r *FormulaRepo) List(ctx context.Context, db *sql.DB, opts ListOptions) ([]*models.Formula, error) {
 	args := []interface{}{}
-	where := ""
+	var conditions []string
+	argIdx := 0
+
 	if opts.ComponentMode != "" {
-		where = " WHERE component_mode = $1"
+		argIdx++
+		conditions = append(conditions, fmt.Sprintf("component_mode = $%d", argIdx))
 		args = append(args, opts.ComponentMode)
 	}
+	if opts.FormulaType != "" {
+		argIdx++
+		conditions = append(conditions, fmt.Sprintf("formula_type = $%d", argIdx))
+		args = append(args, opts.FormulaType)
+	}
 
-	query := `SELECT id, name, code, component_mode, status, created_at, updated_at
+	where := ""
+	if len(conditions) > 0 {
+		where = " WHERE " + conditions[0]
+		for _, c := range conditions[1:] {
+			where += " AND " + c
+		}
+	}
+
+	query := `SELECT id, name, code, component_mode, status, formula_type, labels, created_at, updated_at
 		FROM formulas` + where + ` ORDER BY created_at DESC`
 
 	if opts.Limit > 0 {
-		argIdx := len(args) + 1
+		argIdx++
 		query += fmt.Sprintf(" LIMIT $%d", argIdx)
 		args = append(args, opts.Limit)
 	}
 	if opts.Offset > 0 {
-		argIdx := len(args) + 1
+		argIdx++
 		query += fmt.Sprintf(" OFFSET $%d", argIdx)
 		args = append(args, opts.Offset)
 	}
@@ -206,12 +233,16 @@ func (r *FormulaRepo) List(ctx context.Context, db *sql.DB, opts ListOptions) ([
 	var formulaIDs []uuid.UUID
 	for rows.Next() {
 		f := &models.Formula{}
-		var componentMode, status string
-		if err := rows.Scan(&f.ID, &f.Name, &f.Code, &componentMode, &status, &f.CreatedAt, &f.UpdatedAt); err != nil {
+		var componentMode, status, formulaType string
+		if err := rows.Scan(&f.ID, &f.Name, &f.Code, &componentMode, &status, &formulaType, pq.Array(&f.Labels), &f.CreatedAt, &f.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan formula: %w", err)
 		}
 		f.ComponentMode = models.ComponentMode(componentMode)
 		f.Status = models.Status(status)
+		f.FormulaType = models.FormulaType(formulaType)
+		if f.Labels == nil {
+			f.Labels = []string{}
+		}
 		formulas = append(formulas, f)
 		formulaIDs = append(formulaIDs, f.ID)
 	}
@@ -254,14 +285,29 @@ func (r *FormulaRepo) Update(ctx context.Context, db *sql.DB, f *models.Formula)
 
 	f.UpdatedAt = time.Now()
 
+	// Lock the formula row to prevent concurrent updates
+	var lockedID uuid.UUID
+	err = tx.QueryRowContext(ctx,
+		`SELECT id FROM formulas WHERE id = $1 FOR UPDATE`, f.ID,
+	).Scan(&lockedID)
+	if err == sql.ErrNoRows {
+		return fmt.Errorf("formula %s not found", f.ID)
+	}
+	if err != nil {
+		return fmt.Errorf("lock formula: %w", err)
+	}
+
 	result, err := tx.ExecContext(ctx,
-		`UPDATE formulas SET name=$1, code=$2, component_mode=$3, status=$4, updated_at=$5 WHERE id=$6`,
-		f.Name, f.Code, string(f.ComponentMode), string(f.Status), f.UpdatedAt, f.ID,
+		`UPDATE formulas SET name=$1, code=$2, component_mode=$3, status=$4, formula_type=$5, labels=$6, updated_at=$7 WHERE id=$8`,
+		f.Name, f.Code, string(f.ComponentMode), string(f.Status), string(f.FormulaType), pq.Array(f.Labels), f.UpdatedAt, f.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("update formula: %w", err)
 	}
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("formula %s not found", f.ID)
 	}
@@ -284,9 +330,9 @@ func (r *FormulaRepo) Update(ctx context.Context, db *sql.DB, f *models.Formula)
 		}
 		part.FormulaID = f.ID
 		_, err = tx.ExecContext(ctx,
-			`INSERT INTO formula_parts (id, formula_id, name, sort_order)
-			 VALUES ($1, $2, $3, $4)`,
-			part.ID, part.FormulaID, partNameToDB(part.Name), part.SortOrder,
+			`INSERT INTO formula_parts (id, formula_id, name, sort_order, batch_no, material_id)
+			 VALUES ($1, $2, $3, $4, $5, $6)`,
+			part.ID, part.FormulaID, partNameToDB(part.Name), part.SortOrder, part.BatchNo, part.MaterialID,
 		)
 		if err != nil {
 			return fmt.Errorf("re-insert part %d: %w", pi, err)
@@ -369,7 +415,10 @@ func (r *FormulaRepo) Delete(ctx context.Context, db *sql.DB, id uuid.UUID) erro
 	if err != nil {
 		return fmt.Errorf("delete formula: %w", err)
 	}
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("formula %s not found", id)
 	}
@@ -382,7 +431,7 @@ func (r *FormulaRepo) queryParts(ctx context.Context, db interface {
 	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
 }, formulaID uuid.UUID) ([]models.FormulaPart, error) {
 	rows, err := db.QueryContext(ctx,
-		`SELECT id, formula_id, name, sort_order FROM formula_parts WHERE formula_id = $1 ORDER BY sort_order`, formulaID,
+		`SELECT id, formula_id, name, sort_order, batch_no, material_id::text FROM formula_parts WHERE formula_id = $1 ORDER BY sort_order`, formulaID,
 	)
 	if err != nil {
 		return nil, err
@@ -393,10 +442,17 @@ func (r *FormulaRepo) queryParts(ctx context.Context, db interface {
 	for rows.Next() {
 		var p models.FormulaPart
 		var dbName string
-		if err := rows.Scan(&p.ID, &p.FormulaID, &dbName, &p.SortOrder); err != nil {
+		var materialIDStr sql.NullString
+		if err := rows.Scan(&p.ID, &p.FormulaID, &dbName, &p.SortOrder, &p.BatchNo, &materialIDStr); err != nil {
 			return nil, fmt.Errorf("scan part: %w", err)
 		}
 		p.Name = partNameFromDB(dbName)
+		if materialIDStr.Valid {
+			uid, err := uuid.Parse(materialIDStr.String)
+			if err == nil {
+				p.MaterialID = &uid
+			}
+		}
 		parts = append(parts, p)
 	}
 	if parts == nil {
@@ -411,7 +467,7 @@ func (r *FormulaRepo) queryPartsBulk(ctx context.Context, db *sql.DB, formulaIDs
 		return result, nil
 	}
 	rows, err := db.QueryContext(ctx,
-		`SELECT id, formula_id, name, sort_order FROM formula_parts WHERE formula_id = ANY($1) ORDER BY sort_order`,
+		`SELECT id, formula_id, name, sort_order, batch_no, material_id::text FROM formula_parts WHERE formula_id = ANY($1) ORDER BY sort_order`,
 		pq.Array(formulaIDs),
 	)
 	if err != nil {
@@ -421,10 +477,17 @@ func (r *FormulaRepo) queryPartsBulk(ctx context.Context, db *sql.DB, formulaIDs
 	for rows.Next() {
 		var p models.FormulaPart
 		var dbName string
-		if err := rows.Scan(&p.ID, &p.FormulaID, &dbName, &p.SortOrder); err != nil {
+		var materialIDStr sql.NullString
+		if err := rows.Scan(&p.ID, &p.FormulaID, &dbName, &p.SortOrder, &p.BatchNo, &materialIDStr); err != nil {
 			return nil, fmt.Errorf("scan part: %w", err)
 		}
 		p.Name = partNameFromDB(dbName)
+		if materialIDStr.Valid {
+			uid, err := uuid.Parse(materialIDStr.String)
+			if err == nil {
+				p.MaterialID = &uid
+			}
+		}
 		result[p.FormulaID] = append(result[p.FormulaID], p)
 	}
 	return result, rows.Err()
@@ -490,8 +553,14 @@ func (r *FormulaRepo) queryStepsBulk(ctx context.Context, db *sql.DB, formulaIDs
 	}
 
 	if len(stepIDs) > 0 {
-		paramsByStep, _ := r.queryStepParametersBulk(ctx, db, stepIDs)
-		materialsByStep, _ := r.queryMaterialCategoriesBulk(ctx, db, stepIDs)
+		paramsByStep, err := r.queryStepParametersBulk(ctx, db, stepIDs)
+		if err != nil {
+			return nil, fmt.Errorf("query step parameters bulk: %w", err)
+		}
+		materialsByStep, err := r.queryMaterialCategoriesBulk(ctx, db, stepIDs)
+		if err != nil {
+			return nil, fmt.Errorf("query material categories bulk: %w", err)
+		}
 		for fid, stps := range result {
 			for i := range stps {
 				stps[i].Parameters = paramsByStep[stps[i].ID]
@@ -609,7 +678,10 @@ func (r *FormulaRepo) queryMaterialCategoriesBulk(ctx context.Context, db *sql.D
 	}
 
 	if len(catIDs) > 0 {
-		matsByCat, _ := r.queryMaterialsBulk(ctx, db, catIDs)
+		matsByCat, err := r.queryMaterialsBulk(ctx, db, catIDs)
+		if err != nil {
+			return nil, fmt.Errorf("query materials bulk: %w", err)
+		}
 		for i, e := range entries {
 			entries[i].cat.Materials = matsByCat[e.cat.ID]
 			if entries[i].cat.Materials == nil {

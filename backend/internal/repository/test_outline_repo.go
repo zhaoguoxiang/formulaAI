@@ -69,10 +69,10 @@ func (r *TestOutlineRepo) SaveVersion(ctx context.Context, db *sql.DB, o *models
 	}
 	defer tx.Rollback()
 
-	// Find max version for this outline name
+	// Find max version for this outline name (with lock to prevent concurrent version collisions)
 	var maxVersion int
 	err = tx.QueryRowContext(ctx,
-		`SELECT COALESCE(MAX(version), 0) FROM test_outlines WHERE name = $1`,
+		`SELECT COALESCE(MAX(version), 0) FROM test_outlines WHERE name = $1 FOR UPDATE`,
 		o.Name,
 	).Scan(&maxVersion)
 	if err != nil {
@@ -129,17 +129,32 @@ func (r *TestOutlineRepo) SaveVersion(ctx context.Context, db *sql.DB, o *models
 // Archive — soft delete by setting status = 'archived'
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Archive sets all versions of an outline to 'archived'.
+// Archive sets all versions of an outline name to 'archived'.
 func (r *TestOutlineRepo) Archive(ctx context.Context, db *sql.DB, id uuid.UUID) error {
-	result, err := db.ExecContext(ctx,
-		`UPDATE test_outlines SET status = $1, updated_at = $2 WHERE id = $3`,
-		models.OutlineStatusArchived, time.Now(), id,
-	)
+	// Find the outline name first
+	var name string
+	err := db.QueryRowContext(ctx,
+		`SELECT name FROM test_outlines WHERE id = $1`, id,
+	).Scan(&name)
+	if err == sql.ErrNoRows {
+		return fmt.Errorf("test outline %s: %w", id, sql.ErrNoRows)
+	}
 	if err != nil {
-		return fmt.Errorf("archive test outline: %w", err)
+		return fmt.Errorf("query outline name: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	result, err := db.ExecContext(ctx,
+		`UPDATE test_outlines SET status = $1, updated_at = $2 WHERE name = $3`,
+		models.OutlineStatusArchived, time.Now(), name,
+	)
+	if err != nil {
+		return fmt.Errorf("archive test outlines: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("test outline %s not found", id)
 	}
@@ -252,22 +267,28 @@ func (r *TestOutlineRepo) ListVersions(ctx context.Context, db *sql.DB, name str
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (r *TestOutlineRepo) ActivateVersion(ctx context.Context, db *sql.DB, id uuid.UUID) error {
-	// Get the outline to find its name
-	o, err := r.GetByID(ctx, db, id)
-	if err != nil {
-		return err
-	}
-
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback()
 
+	// Get the outline name inside the transaction to avoid TOCTOU
+	var name string
+	err = tx.QueryRowContext(ctx,
+		`SELECT name FROM test_outlines WHERE id = $1 FOR UPDATE`, id,
+	).Scan(&name)
+	if err == sql.ErrNoRows {
+		return fmt.Errorf("test outline %s: %w", id, sql.ErrNoRows)
+	}
+	if err != nil {
+		return fmt.Errorf("query outline name: %w", err)
+	}
+
 	// Archive all versions with this name
 	_, err = tx.ExecContext(ctx,
 		`UPDATE test_outlines SET status = $1, updated_at = $2 WHERE name = $3`,
-		models.OutlineStatusArchived, time.Now(), o.Name,
+		models.OutlineStatusArchived, time.Now(), name,
 	)
 	if err != nil {
 		return fmt.Errorf("archive versions: %w", err)
@@ -300,7 +321,10 @@ func (r *TestOutlineRepo) Delete(ctx context.Context, db *sql.DB, id uuid.UUID) 
 		return fmt.Errorf("delete test outline: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("test outline %s not found", id)
 	}

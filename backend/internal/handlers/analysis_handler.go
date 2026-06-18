@@ -10,12 +10,12 @@ import (
 // AnalysisHandler provides HTTP handlers for statistical analysis endpoints.
 // All handlers use SQL GROUP BY aggregation queries against the formula database.
 type AnalysisHandler struct {
-	DB *sql.DB
+	db *sql.DB
 }
 
 // NewAnalysisHandler creates a new AnalysisHandler with the given database connection.
 func NewAnalysisHandler(db *sql.DB) *AnalysisHandler {
-	return &AnalysisHandler{DB: db}
+	return &AnalysisHandler{db: db}
 }
 
 // IngredientDistributionItem represents one row in the ingredient distribution result.
@@ -31,11 +31,11 @@ type IngredientDistributionItem struct {
 //
 // SQL: SELECT material, COUNT(*) as count, AVG(percentage) as avg_percentage
 //
-//	FROM formula_ingredients GROUP BY material ORDER BY count DESC
+//	FROM formula_step_materials GROUP BY material ORDER BY count DESC
 func (h *AnalysisHandler) IngredientDistribution(c *gin.Context) {
-	rows, err := h.DB.Query(
+	rows, err := h.db.Query(
 		`SELECT material, COUNT(*) as count, AVG(percentage) as avg_percentage
-		 FROM formula_ingredients
+		 FROM formula_step_materials
 		 GROUP BY material
 		 ORDER BY count DESC`,
 	)
@@ -81,7 +81,7 @@ type ComponentModeRatioItem struct {
 //
 //	FROM formulas GROUP BY component_mode
 func (h *AnalysisHandler) ComponentModeRatio(c *gin.Context) {
-	rows, err := h.DB.Query(
+	rows, err := h.db.Query(
 		`SELECT component_mode,
 		        COUNT(*) as count,
 		        ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 2) as percentage
@@ -129,7 +129,7 @@ type StepCountDistributionItem struct {
 //
 // SQL: Uses a CTE to count steps per formula, then buckets the counts.
 func (h *AnalysisHandler) StepCountDistribution(c *gin.Context) {
-	rows, err := h.DB.Query(
+	rows, err := h.db.Query(
 		`WITH step_counts AS (
 		     SELECT formula_id, COUNT(*) as cnt
 		     FROM formula_steps
@@ -172,26 +172,27 @@ func (h *AnalysisHandler) StepCountDistribution(c *gin.Context) {
 	c.JSON(http.StatusOK, results)
 }
 
-// DosingMethodStatsItem represents one row in the dosing method stats result.
-type DosingMethodStatsItem struct {
-	Method string `json:"method"`
-	Count  int    `json:"count"`
+// CategoryMaterialCountItem represents one row in the category material count result.
+type CategoryMaterialCountItem struct {
+	CategoryName string `json:"category_name"`
+	MaterialCount int   `json:"material_count"`
 }
 
-// DosingMethodStats returns the distribution of dosing methods used across all formulas.
+// CategoryMaterialCount returns the distribution of materials per category across steps.
 //
 // GET /api/analysis/dosing-method-stats
 //
-// SQL: SELECT dosing_method, COUNT(*) FROM formula_dosing_actions
+// SQL: SELECT c.name, COUNT(m.id) FROM formula_step_material_categories c
 //
-//	WHERE dosing_method IS NOT NULL GROUP BY dosing_method ORDER BY count DESC
+//	JOIN formula_step_materials m ON m.category_id = c.id
+//	GROUP BY c.name ORDER BY material_count DESC
 func (h *AnalysisHandler) DosingMethodStats(c *gin.Context) {
-	rows, err := h.DB.Query(
-		`SELECT dosing_method, COUNT(*) as count
-		 FROM formula_dosing_actions
-		 WHERE dosing_method IS NOT NULL AND dosing_method != ''
-		 GROUP BY dosing_method
-		 ORDER BY count DESC`,
+	rows, err := h.db.Query(
+		`SELECT c.name, COUNT(m.id) as material_count
+		 FROM formula_step_material_categories c
+		 JOIN formula_step_materials m ON m.category_id = c.id
+		 GROUP BY c.name
+		 ORDER BY material_count DESC`,
 	)
 	if err != nil {
 		serverError(c, "analysis query failed", err)
@@ -199,10 +200,10 @@ func (h *AnalysisHandler) DosingMethodStats(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	var results []DosingMethodStatsItem
+	var results []CategoryMaterialCountItem
 	for rows.Next() {
-		var item DosingMethodStatsItem
-		if err := rows.Scan(&item.Method, &item.Count); err != nil {
+		var item CategoryMaterialCountItem
+		if err := rows.Scan(&item.CategoryName, &item.MaterialCount); err != nil {
 			serverError(c, "analysis query failed", err)
 			return
 		}
@@ -214,7 +215,7 @@ func (h *AnalysisHandler) DosingMethodStats(c *gin.Context) {
 	}
 
 	if results == nil {
-		results = []DosingMethodStatsItem{}
+		results = []CategoryMaterialCountItem{}
 	}
 
 	c.JSON(http.StatusOK, results)

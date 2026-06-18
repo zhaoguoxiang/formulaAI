@@ -1,11 +1,12 @@
 package handlers
 
 import (
+	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
-	"math/rand"
+	"math/big"
 	"net/http"
 	"strings"
 	"time"
@@ -87,9 +88,12 @@ func (h *FormulaHandler) CreateFormula(c *gin.Context) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ListFormulas handles GET /api/formulas. Returns all formulas with their
-// nested data as a JSON array.
+// nested data as a JSON array. Supports ?formula_type=formula|material filter.
 func (h *FormulaHandler) ListFormulas(c *gin.Context) {
-	formulas, err := h.repo.List(c.Request.Context(), h.db, repository.ListOptions{})
+	opts := repository.ListOptions{
+		FormulaType: c.Query("formula_type"),
+	}
+	formulas, err := h.repo.List(c.Request.Context(), h.db, opts)
 	if err != nil {
 		serverError(c, "failed to list formulas", err)
 		return
@@ -237,7 +241,12 @@ func generateFormulaCode() string {
 	chars := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	suffix := make([]byte, 4)
 	for i := range suffix {
-		suffix[i] = chars[rand.Intn(len(chars))]
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		if err != nil {
+			suffix[i] = 'X' // fallback on crypto failure (extremely unlikely)
+		} else {
+			suffix[i] = chars[n.Int64()]
+		}
 	}
 	return fmt.Sprintf("FML-%s-%s", dateStr, string(suffix))
 }

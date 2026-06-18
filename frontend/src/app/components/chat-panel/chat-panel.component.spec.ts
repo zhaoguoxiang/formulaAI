@@ -33,12 +33,6 @@ describe('ChatPanelComponent', () => {
     expect(cardTitle.nativeElement.textContent).toContain('AI 配方助手');
   });
 
-  it('should render a smart_toy icon in the header', () => {
-    const icon = fixture.debugElement.query(By.css('mat-card-header mat-icon'));
-    expect(icon).toBeTruthy();
-    expect(icon.nativeElement.textContent).toContain('smart_toy');
-  });
-
   it('should render the empty state when no messages exist', () => {
     const emptyState = fixture.debugElement.query(By.css('.empty-state'));
     expect(emptyState).toBeTruthy();
@@ -47,13 +41,13 @@ describe('ChatPanelComponent', () => {
     expect(emptyTitle.nativeElement.textContent).toContain('AI 配方助手');
   });
 
-  it('should render the input form field', () => {
-    const formField = fixture.debugElement.query(By.css('mat-form-field'));
-    expect(formField).toBeTruthy();
+  it('should render the textarea input', () => {
+    const textarea = fixture.debugElement.query(By.css('.chat-textarea'));
+    expect(textarea).toBeTruthy();
   });
 
   it('should render the send button', () => {
-    const sendBtn = fixture.debugElement.query(By.css('.send-button'));
+    const sendBtn = fixture.debugElement.query(By.css('.send-btn'));
     expect(sendBtn).toBeTruthy();
   });
 
@@ -61,7 +55,7 @@ describe('ChatPanelComponent', () => {
     component.inputText = '';
     fixture.detectChanges();
 
-    const sendBtn = fixture.debugElement.query(By.css('.send-button'));
+    const sendBtn = fixture.debugElement.query(By.css('.send-btn'));
     expect(sendBtn.nativeElement.disabled).toBe(true);
   });
 
@@ -69,14 +63,8 @@ describe('ChatPanelComponent', () => {
     component.inputText = 'Hello';
     fixture.detectChanges();
 
-    const sendBtn = fixture.debugElement.query(By.css('.send-button'));
+    const sendBtn = fixture.debugElement.query(By.css('.send-btn'));
     expect(sendBtn.nativeElement.disabled).toBe(false);
-  });
-
-  it('should render the input element inside mat-form-field', () => {
-    const input = fixture.debugElement.query(By.css('input[matInput]'));
-    expect(input).toBeTruthy();
-    expect(input.nativeElement.placeholder).toContain('询问');
   });
 
   it('should add user message and clear input on send', () => {
@@ -94,5 +82,14 @@ describe('ChatPanelComponent', () => {
     component.sendMessage();
 
     expect(component.messages().length).toBe(0);
+  });
+
+  it('should clear messages on clearChat', () => {
+    component.inputText = 'Hello';
+    component.sendMessage();
+
+    component.clearChat();
+    expect(component.messages().length).toBe(0);
+    expect(component.inputText).toBe('');
   });
 });

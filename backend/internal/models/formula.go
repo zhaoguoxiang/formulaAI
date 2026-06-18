@@ -23,15 +23,25 @@ const (
 	StatusArchived Status = "archived"
 )
 
-// Formula is the root domain entity representing a complete formula.
+// FormulaType distinguishes between formulas and pre-built materials.
+type FormulaType string
+
+const (
+	FormulaTypeFormula  FormulaType = "formula"
+	FormulaTypeMaterial FormulaType = "material"
+)
+
+// Formula is the root domain entity representing a complete formula or pre-built material.
 type Formula struct {
-	ID            uuid.UUID      `json:"id"            db:"id"`
-	Name          string         `json:"name"          db:"name"`
-	Code          string         `json:"code"          db:"code"`
-	ComponentMode ComponentMode  `json:"component_mode" db:"component_mode"`
-	Status        Status         `json:"status"        db:"status"`
-	Parts         []FormulaPart  `json:"parts"`
-	Steps         []FormulaStep  `json:"steps"`
-	CreatedAt     time.Time      `json:"created_at"    db:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"    db:"updated_at"`
+	ID            uuid.UUID     `json:"id"             db:"id"`
+	Name          string        `json:"name"           db:"name"`
+	Code          string        `json:"code"           db:"code"`
+	ComponentMode ComponentMode `json:"component_mode" db:"component_mode"`
+	Status        Status        `json:"status"         db:"status"`
+	FormulaType   FormulaType   `json:"formula_type"   db:"formula_type"`
+	Labels        []string      `json:"labels"         db:"labels"`
+	Parts         []FormulaPart `json:"parts"`
+	Steps         []FormulaStep `json:"steps"`
+	CreatedAt     time.Time     `json:"created_at"     db:"created_at"`
+	UpdatedAt     time.Time     `json:"updated_at"     db:"updated_at"`
 }

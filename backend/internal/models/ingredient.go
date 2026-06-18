@@ -2,6 +2,11 @@ package models
 
 import "github.com/google/uuid"
 
+// NOTE: FormulaIngredientCategory and FormulaIngredient are vestigial types
+// retained for API backward compatibility. The current data model uses
+// FormulaStepMaterialCategory/FormulaStepMaterial from step_material.go.
+// Part-level ingredients were replaced by step-level materials in migration 013.
+
 // FormulaIngredientCategory groups ingredients under a part.
 type FormulaIngredientCategory struct {
 	ID          uuid.UUID           `json:"id"          db:"id"`
