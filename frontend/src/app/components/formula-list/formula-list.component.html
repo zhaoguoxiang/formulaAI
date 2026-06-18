@@ -1,8 +1,8 @@
-<!-- ── Formula Matrix Tab ── -->
-<div class="matrix-root">
+<!-- ── Formula List Tab ── -->
+<div class="list-root">
 
   <!-- ═══ Filter Toolbar ═══ -->
-  <div class="matrix-toolbar">
+  <div class="list-toolbar">
     <mat-button-toggle-group
       class="mode-toggle-group"
       [value]="selectedMode"
@@ -66,7 +66,7 @@
       <mat-icon class="state-icon">error_outline</mat-icon>
     </div>
     <p class="state-text error-text">{{ error() }}</p>
-    <button mat-stroked-button (click)="loadMatrix()">
+    <button mat-stroked-button (click)="loadList()">
       <mat-icon>refresh</mat-icon>
       重试
     </button>
@@ -95,7 +95,7 @@
       [dataSource]="dataSource"
       multiTemplateDataRows
       matSort
-      class="matrix-table"
+      class="list-table"
       aria-label="配方矩阵表格">
 
       <!-- ── Column: Expand ── -->

@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { FormulaApiService } from './formula-api.service';
-import { Formula, FormulaMatrix } from '../types/formula.types';
+import { Formula, FormulaList } from '../types/formula.types';
 
 describe('FormulaApiService', () => {
   let service: FormulaApiService;
@@ -14,13 +14,15 @@ describe('FormulaApiService', () => {
     code: 'TF-001',
     component_mode: 'single',
     status: 'draft',
+    formula_type: 'formula',
+    labels: [],
     parts: [],
     steps: [],
     created_at: '2025-01-01T00:00:00Z',
     updated_at: '2025-01-01T00:00:00Z',
   };
 
-  const mockFormulaMatrix: FormulaMatrix = {
+  const mockFormulaList: FormulaList = {
     formulas: [mockFormula],
   };
 
@@ -82,28 +84,28 @@ describe('FormulaApiService', () => {
     req.flush({ ...mockFormula, name: 'Updated', status: 'active' });
   });
 
-  // ─── getFormulaMatrix ───
+  // ─── getFormulaList ───
 
-  it('getFormulaMatrix() should GET /api/formulas/matrix and return FormulaMatrix', () => {
-    service.getFormulaMatrix().subscribe((matrix) => {
-      expect(matrix.formulas.length).toBe(1);
-      expect(matrix.formulas[0].id).toBe('f1');
+  it('getFormulaList() should GET /api/formulas/list and return FormulaList', () => {
+    service.getFormulaList().subscribe((list) => {
+      expect(list.formulas.length).toBe(1);
+      expect(list.formulas[0].id).toBe('f1');
     });
 
-    const req = httpMock.expectOne('/api/formulas/matrix');
+    const req = httpMock.expectOne('/api/formulas/list');
     expect(req.request.method).toBe('GET');
-    req.flush(mockFormulaMatrix);
+    req.flush(mockFormulaList);
   });
 
-  it('getFormulaMatrix("double") should add component_mode query param', () => {
-    service.getFormulaMatrix('double').subscribe((matrix) => {
-      expect(matrix.formulas.length).toBe(1);
+  it('getFormulaList("double") should add component_mode query param', () => {
+    service.getFormulaList('double').subscribe((list) => {
+      expect(list.formulas.length).toBe(1);
     });
 
     const req = httpMock.expectOne(
-      (r) => r.url === '/api/formulas/matrix' && r.params.get('component_mode') === 'double',
+      (r) => r.url === '/api/formulas/list' && r.params.get('component_mode') === 'double',
     );
     expect(req.request.method).toBe('GET');
-    req.flush(mockFormulaMatrix);
+    req.flush(mockFormulaList);
   });
 });

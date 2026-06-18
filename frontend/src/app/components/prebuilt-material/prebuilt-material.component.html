@@ -1,6 +1,6 @@
-<div class="matrix-root">
+<div class="list-root">
   <!-- Toolbar -->
-  <div class="matrix-toolbar">
+  <div class="list-toolbar">
     <button mat-flat-button color="primary" class="add-formula-btn" (click)="openNewDialog()">
       <mat-icon>add</mat-icon>
       新建预制物料
@@ -57,7 +57,7 @@
 
   <!-- Table -->
   <mat-card class="table-card" *ngIf="!loading() && !error() && dataSource.data.length > 0">
-    <table mat-table [dataSource]="dataSource" multiTemplateDataRows matSort class="matrix-table" aria-label="预制物料表格">
+    <table mat-table [dataSource]="dataSource" multiTemplateDataRows matSort class="list-table" aria-label="预制物料表格">
 
       <!-- Expand column -->
       <ng-container matColumnDef="expand">

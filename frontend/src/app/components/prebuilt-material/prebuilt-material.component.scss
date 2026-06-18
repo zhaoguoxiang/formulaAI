@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════
    Prebuilt Material — M3 Data Table & Expandable Rows
-   Style aligned with formula-matrix component
+   Style aligned with formula-list component
    ═══════════════════════════════════════════════ */
 
 :host {
@@ -11,7 +11,7 @@
 }
 
 /* ── Root container ── */
-.matrix-root {
+.list-root {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -20,7 +20,7 @@
 }
 
 /* ═══ Filter Toolbar ═══ */
-.matrix-toolbar {
+.list-toolbar {
   display: flex;
   align-items: center;
   gap: var(--app-spacing-sm, 8px);
@@ -165,17 +165,17 @@
   border: 1px solid var(--mat-sys-outline-variant, #CAC4D0);
 }
 
-.matrix-table {
+.list-table {
   width: 100%;
 }
 
 /* Sort header indicator */
-::ng-deep .matrix-table .mat-sort-header-arrow {
+::ng-deep .list-table .mat-sort-header-arrow {
   color: var(--mat-sys-primary, #6750A4);
 }
 
-/* Search field inside matrix-root */
-::ng-deep .matrix-root .search-field .mdc-notched-outline__trailing {
+/* Search field inside list-root */
+::ng-deep .list-root .search-field .mdc-notched-outline__trailing {
   border-radius: 0 var(--app-shape-md, 12px) var(--app-shape-md, 12px) 0;
 }
 
@@ -253,7 +253,7 @@
   color: var(--mat-sys-on-surface, #1D1B20);
 }
 
-/* ── Labels column (replaces mode-chip in formula-matrix) ── */
+/* ── Labels column (replaces mode-chip in formula-list) ── */
 .labels-row {
   display: flex;
   gap: var(--app-spacing-xs, 4px);

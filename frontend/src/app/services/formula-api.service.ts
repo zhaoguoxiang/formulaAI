@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
   Formula,
-  FormulaMatrix,
+  FormulaList,
 } from '../types/formula.types';
 
 @Injectable({
@@ -34,12 +34,12 @@ export class FormulaApiService {
     return this.http.delete<void>(`${this.baseUrl}/formulas/${id}`);
   }
 
-  /** Fetch the formula matrix (cross-tab view), optionally filtered by component mode. */
-  getFormulaMatrix(componentMode?: string): Observable<FormulaMatrix> {
+  /** Fetch the formula list (cross-tab view), optionally filtered by component mode. */
+  getFormulaList(componentMode?: string): Observable<FormulaList> {
     let params = new HttpParams();
     if (componentMode) {
       params = params.set('component_mode', componentMode);
     }
-    return this.http.get<FormulaMatrix>(`${this.baseUrl}/formulas/matrix`, { params });
+    return this.http.get<FormulaList>(`${this.baseUrl}/formulas/list`, { params });
   }
 }

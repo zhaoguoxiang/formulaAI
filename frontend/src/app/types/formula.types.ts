@@ -88,7 +88,7 @@ export interface Formula {
   updated_at: string;
 }
 
-export interface FormulaMatrix {
+export interface FormulaList {
   formulas: Formula[];
 }
 

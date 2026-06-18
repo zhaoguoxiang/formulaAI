@@ -26,7 +26,7 @@ import { extractErrorMessage } from '../../utils/error.utils';
 import { FormulaEditorComponent } from '../formula-editor/formula-editor.component';
 
 @Component({
-  selector: 'app-formula-matrix',
+  selector: 'app-formula-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
@@ -47,8 +47,8 @@ import { FormulaEditorComponent } from '../formula-editor/formula-editor.compone
     MatSnackBarModule,
     FormsModule,
   ],
-  templateUrl: './formula-matrix.component.html',
-  styleUrl: './formula-matrix.component.scss',
+  templateUrl: './formula-list.component.html',
+  styleUrl: './formula-list.component.scss',
   animations: [
     trigger('detailExpand', [
       state('collapsed, void', style({ height: '0px', minHeight: '0', visibility: 'hidden', overflow: 'hidden' })),
@@ -57,7 +57,7 @@ import { FormulaEditorComponent } from '../formula-editor/formula-editor.compone
     ]),
   ],
 })
-export class FormulaMatrixComponent implements OnInit {
+export class FormulaListComponent implements OnInit {
   private readonly formulaApi = inject(FormulaApiService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialog = inject(MatDialog);
@@ -84,7 +84,7 @@ export class FormulaMatrixComponent implements OnInit {
   searchText = '';
 
   ngOnInit(): void {
-    this.loadMatrix();
+    this.loadList();
   }
 
   ngAfterViewInit(): void {
@@ -109,17 +109,17 @@ export class FormulaMatrixComponent implements OnInit {
     this.dataSource.filter = value.trim().toLowerCase();
   }
 
-  loadMatrix(): void {
+  loadList(): void {
     this.loading.set(true);
     this.error.set(null);
     this.expandedElement = null;
 
     const mode = this.selectedMode || undefined;
-    this.formulaApi.getFormulaMatrix(mode)
+    this.formulaApi.getFormulaList(mode)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (matrix) => {
-          this.dataSource.data = matrix.formulas ?? [];
+        next: (list) => {
+          this.dataSource.data = list.formulas ?? [];
           this.dataSource.filterPredicate = (data: Formula, filter: string) => {
             const search = filter.toLowerCase();
             return (
@@ -132,7 +132,7 @@ export class FormulaMatrixComponent implements OnInit {
           this.loading.set(false);
         },
         error: (err) => {
-          console.error('[FormulaMatrix] Failed to load matrix', err);
+          console.error('[FormulaList] Failed to load list', err);
           this.error.set(extractErrorMessage(err, '加载配方数据失败，请检查后端服务'));
           this.loading.set(false);
           this.dataSource.data = [];
@@ -151,7 +151,7 @@ export class FormulaMatrixComponent implements OnInit {
 
     const sub = dialogRef.componentInstance.saved.subscribe(() => {
       dialogRef.close();
-      this.loadMatrix();
+      this.loadList();
     });
 
     const cancelSub = dialogRef.componentInstance.cancelled.subscribe(() => {
@@ -168,7 +168,7 @@ export class FormulaMatrixComponent implements OnInit {
     this.selectedMode = event.value;
     this.searchText = '';
     this.dataSource.filter = '';
-    this.loadMatrix();
+    this.loadList();
   }
 
   toggleRow(formula: Formula): void {
@@ -192,7 +192,7 @@ export class FormulaMatrixComponent implements OnInit {
 
     const sub = dialogRef.componentInstance.saved.subscribe(() => {
       dialogRef.close();
-      this.loadMatrix();
+      this.loadList();
     });
 
     const cancelSub = dialogRef.componentInstance.cancelled.subscribe(() => {
@@ -219,7 +219,7 @@ export class FormulaMatrixComponent implements OnInit {
         .subscribe({
           next: () => {
             this.snackBar.open(`已删除配方「${formula.name}」`, '关闭', { duration: 3000 });
-            this.loadMatrix();
+            this.loadList();
           },
           error: (err) => {
             this.loading.set(false);
@@ -250,7 +250,7 @@ export class FormulaMatrixComponent implements OnInit {
               next: () => {
                 this.loading.set(false);
                 this.snackBar.open(`已克隆配方「${full.name}」→「${cloneData['name']}」`, '关闭', { duration: 3000 });
-                this.loadMatrix();
+                this.loadList();
               },
               error: (err) => {
                 this.loading.set(false);

@@ -31,7 +31,7 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB) {
 
 	// ── Formula handlers ──
 	formulaHandler := NewFormulaHandler(db)
-	matrixHandler := NewMatrixHandler(db)
+	listHandler := NewFormulaListHandler(db)
 
 	api := router.Group("/api")
 	{
@@ -45,7 +45,7 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB) {
 		{
 			formulas.POST("", formulaHandler.CreateFormula)
 			formulas.GET("", formulaHandler.ListFormulas)
-			formulas.GET("/matrix", matrixHandler.HandleMatrix)
+			formulas.GET("/list", listHandler.HandleList)
 			formulas.GET("/:id", formulaHandler.GetFormula)
 			formulas.PUT("/:id", formulaHandler.UpdateFormula)
 			formulas.DELETE("/:id", formulaHandler.DeleteFormula)

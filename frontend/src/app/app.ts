@@ -8,7 +8,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { FormulaAnalysisComponent } from './components/formula-analysis/formula-analysis.component';
-import { FormulaMatrixComponent } from './components/formula-matrix/formula-matrix.component';
+import { FormulaListComponent } from './components/formula-list/formula-list.component';
 import { PrebuiltMaterialComponent } from './components/prebuilt-material/prebuilt-material.component';
 import { TestOutlineComponent } from './components/test-outline/test-outline.component';
 import { ChatPanelComponent } from './components/chat-panel/chat-panel.component';
@@ -27,7 +27,7 @@ import { ChatPanelComponent } from './components/chat-panel/chat-panel.component
     MatTooltipModule,
     PrebuiltMaterialComponent,
     FormulaAnalysisComponent,
-    FormulaMatrixComponent,
+    FormulaListComponent,
     TestOutlineComponent,
     ChatPanelComponent,
   ],

@@ -229,31 +229,31 @@ log "═════════════════════════
 log "Phase 4: Matrix API"
 log "══════════════════════════════════════════════════════════════════"
 
-check_http "Matrix API (GET /api/formulas/matrix)" GET "${API_BASE}/api/formulas/matrix"
+check_http "Formula List API (GET /api/formulas/list)" GET "${API_BASE}/api/formulas/list"
 
-MATRIX_COUNT=$(curl -s "${API_BASE}/api/formulas/matrix" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('formulas',[])))" 2>/dev/null || echo "0")
-if [ "$MATRIX_COUNT" -eq 3 ]; then
-    pass "Matrix API: 3 formulas with restructured data"
+LIST_COUNT=$(curl -s "${API_BASE}/api/formulas/list" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('formulas',[])))" 2>/dev/null || echo "0")
+if [ "$LIST_COUNT" -eq 3 ]; then
+    pass "Formula List API: 3 formulas with restructured data"
 else
-    fail "Matrix API: expected 3, got $MATRIX_COUNT"
+    fail "Formula List API: expected 3, got $LIST_COUNT"
 fi
 
-# Check matrix structure has parts and steps
-MATRIX_STRUCT=$(curl -s "${API_BASE}/api/formulas/matrix" | python3 -c "
+# Check structure has parts and steps
+LIST_STRUCT=$(curl -s "${API_BASE}/api/formulas/list" | python3 -c "
 import sys,json
 data = json.load(sys.stdin)
 f = data['formulas'][0]
 print(f'parts:{len(f.get(\"parts\",[]))}_steps:{len(f.get(\"steps\",[]))}')
 " 2>/dev/null)
-log "  Matrix structure sample: $MATRIX_STRUCT"
+log "  Formula List structure sample: $LIST_STRUCT"
 
 # Filter test
-check_http "Matrix filter (component_mode=single)" GET "${API_BASE}/api/formulas/matrix?component_mode=single"
-SINGLE_COUNT=$(curl -s "${API_BASE}/api/formulas/matrix?component_mode=single" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('formulas',[])))" 2>/dev/null || echo "0")
+check_http "Filter (component_mode=single)" GET "${API_BASE}/api/formulas/list?component_mode=single"
+SINGLE_COUNT=$(curl -s "${API_BASE}/api/formulas/list?component_mode=single" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('formulas',[])))" 2>/dev/null || echo "0")
 if [ "$SINGLE_COUNT" -eq 2 ]; then
-    pass "Matrix filter: 2 single-component formulas"
+    pass "Filter: 2 single-component formulas"
 else
-    fail "Matrix filter: expected 2 single, got $SINGLE_COUNT"
+    fail "Filter: expected 2 single, got $SINGLE_COUNT"
 fi
 
 # ── Phase 5: Analysis Endpoints ───────────────────────────────────────────────

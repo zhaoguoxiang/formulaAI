@@ -5,9 +5,9 @@ import { provideHttpClient } from '@angular/common/http';
 import { By } from '@angular/platform-browser';
 import { of, throwError } from 'rxjs';
 
-import { FormulaMatrixComponent } from './formula-matrix.component';
+import { FormulaListComponent } from './formula-list.component';
 import { FormulaApiService } from '../../services/formula-api.service';
-import { Formula, FormulaMatrix, ComponentMode } from '../../types/formula.types';
+import { Formula, FormulaList, ComponentMode } from '../../types/formula.types';
 
 function makeFormula(overrides: Partial<Formula> = {}): Formula {
   return {
@@ -31,25 +31,25 @@ function makeFormula(overrides: Partial<Formula> = {}): Formula {
   };
 }
 
-function makeMatrix(formulas: Formula[]): FormulaMatrix {
+function makeList(formulas: Formula[]): FormulaList {
   return { formulas };
 }
 
-describe('FormulaMatrixComponent', () => {
-  let component: FormulaMatrixComponent;
-  let fixture: ComponentFixture<FormulaMatrixComponent>;
+describe('FormulaListComponent', () => {
+  let component: FormulaListComponent;
+  let fixture: ComponentFixture<FormulaListComponent>;
   let apiService: FormulaApiService;
 
   function createComponent(): void {
     TestBed.configureTestingModule({
-      imports: [FormulaMatrixComponent, NoopAnimationsModule],
+      imports: [FormulaListComponent, NoopAnimationsModule],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
       ],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(FormulaMatrixComponent);
+    fixture = TestBed.createComponent(FormulaListComponent);
     component = fixture.componentInstance;
     apiService = TestBed.inject(FormulaApiService);
   }
@@ -71,14 +71,14 @@ describe('FormulaMatrixComponent', () => {
       createComponent();
     });
 
-    it('should call getFormulaMatrix on init', () => {
-      vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(of(makeMatrix([])));
+    it('should call getFormulaList on init', () => {
+      vi.spyOn(apiService, 'getFormulaList').mockReturnValue(of(makeList([])));
       fixture.detectChanges();
-      expect(apiService.getFormulaMatrix).toHaveBeenCalled();
+      expect(apiService.getFormulaList).toHaveBeenCalled();
     });
 
     it('should set loading to false after data arrives', () => {
-      vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(of(makeMatrix([])));
+      vi.spyOn(apiService, 'getFormulaList').mockReturnValue(of(makeList([])));
       fixture.detectChanges();
 
       expect(component.loading()).toBe(false);
@@ -86,7 +86,7 @@ describe('FormulaMatrixComponent', () => {
     });
 
     it('should show empty state when no formulas exist', () => {
-      vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(of(makeMatrix([])));
+      vi.spyOn(apiService, 'getFormulaList').mockReturnValue(of(makeList([])));
       fixture.detectChanges();
 
       expect(component.dataSource.data.length).toBe(0);
@@ -97,7 +97,7 @@ describe('FormulaMatrixComponent', () => {
       const f1 = makeFormula({ id: 'f-001', name: 'Alpha', code: 'A-001' });
       const f2 = makeFormula({ id: 'f-002', name: 'Beta', code: 'B-001', component_mode: 'double' });
 
-      vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(of(makeMatrix([f1, f2])));
+      vi.spyOn(apiService, 'getFormulaList').mockReturnValue(of(makeList([f1, f2])));
       fixture.detectChanges();
 
       const rows = fixture.debugElement.queryAll(By.css('.formula-row'));
@@ -112,7 +112,7 @@ describe('FormulaMatrixComponent', () => {
     });
 
     it('should show error state and allow retry', () => {
-      vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(throwError(() => new Error('Server Error')));
+      vi.spyOn(apiService, 'getFormulaList').mockReturnValue(throwError(() => new Error('Server Error')));
       fixture.detectChanges();
 
       expect(component.error()).toBeTruthy();
@@ -124,7 +124,7 @@ describe('FormulaMatrixComponent', () => {
       const retryBtn = fixture.debugElement.query(By.css('.state-error button'));
       expect(retryBtn).toBeTruthy();
 
-      vi.mocked(apiService.getFormulaMatrix).mockReturnValue(of(makeMatrix([])));
+      vi.mocked(apiService.getFormulaList).mockReturnValue(of(makeList([])));
       retryBtn.triggerEventHandler('click', null);
       fixture.detectChanges();
 
@@ -135,7 +135,7 @@ describe('FormulaMatrixComponent', () => {
   describe('row expansion', () => {
     beforeEach(() => {
       createComponent();
-      vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(of(makeMatrix([makeFormula()])));
+      vi.spyOn(apiService, 'getFormulaList').mockReturnValue(of(makeList([makeFormula()])));
       fixture.detectChanges();
     });
 
@@ -180,10 +180,10 @@ describe('FormulaMatrixComponent', () => {
     });
 
     it('should show no-ingredients hint when part has no ingredients', () => {
-      vi.mocked(apiService.getFormulaMatrix).mockReturnValue(of(makeMatrix([makeFormula({
+      vi.mocked(apiService.getFormulaList).mockReturnValue(of(makeList([makeFormula({
         parts: [{ id: 'p-001', formula_id: 'f-001', name: 'PartMain', mix_ratio: 100, sort_order: 1, ingredients: [] }],
       })])));
-      component.loadMatrix();
+      component.loadList();
       fixture.detectChanges();
 
       const row = fixture.debugElement.query(By.css('.formula-row'));
@@ -195,8 +195,8 @@ describe('FormulaMatrixComponent', () => {
     });
 
     it('should not show steps section when formula has no steps', () => {
-      vi.mocked(apiService.getFormulaMatrix).mockReturnValue(of(makeMatrix([makeFormula({ steps: [] })])));
-      component.loadMatrix();
+      vi.mocked(apiService.getFormulaList).mockReturnValue(of(makeList([makeFormula({ steps: [] })])));
+      component.loadList();
       fixture.detectChanges();
 
       const row = fixture.debugElement.query(By.css('.formula-row'));
@@ -213,27 +213,27 @@ describe('FormulaMatrixComponent', () => {
       createComponent();
     });
 
-    it('should re-fetch matrix when filter changes', () => {
-      vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(of(makeMatrix([])));
+    it('should re-fetch list when filter changes', () => {
+      vi.spyOn(apiService, 'getFormulaList').mockReturnValue(of(makeList([])));
       fixture.detectChanges();
 
       component.onModeFilterChange({ value: 'single' } as any);
       expect(component.selectedMode).toBe('single');
-      expect(apiService.getFormulaMatrix).toHaveBeenCalledWith('single');
+      expect(apiService.getFormulaList).toHaveBeenCalledWith('single');
     });
 
     it('should send no mode param when All is selected', () => {
       component.selectedMode = 'single';
-      vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(of(makeMatrix([])));
+      vi.spyOn(apiService, 'getFormulaList').mockReturnValue(of(makeList([])));
       fixture.detectChanges();
-      expect(apiService.getFormulaMatrix).toHaveBeenCalledWith('single');
+      expect(apiService.getFormulaList).toHaveBeenCalledWith('single');
 
       component.onModeFilterChange({ value: '' } as any);
-      expect(apiService.getFormulaMatrix).toHaveBeenCalledWith(undefined);
+      expect(apiService.getFormulaList).toHaveBeenCalledWith(undefined);
     });
 
     it('should render the mode filter button-toggle group', () => {
-      vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(of(makeMatrix([makeFormula()])));
+      vi.spyOn(apiService, 'getFormulaList').mockReturnValue(of(makeList([makeFormula()])));
       fixture.detectChanges();
 
       const toggleGroup = fixture.debugElement.query(By.css('mat-button-toggle-group'));
@@ -244,7 +244,7 @@ describe('FormulaMatrixComponent', () => {
     });
 
     it('should have an add formula button', () => {
-      vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(of(makeMatrix([makeFormula()])));
+      vi.spyOn(apiService, 'getFormulaList').mockReturnValue(of(makeList([makeFormula()])));
       fixture.detectChanges();
 
       const addBtn = fixture.debugElement.query(By.css('.add-formula-btn'));
@@ -281,7 +281,7 @@ describe('FormulaMatrixComponent', () => {
     });
 
     it('should render correct mode chip for single component', () => {
-      vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(of(makeMatrix([makeFormula({ component_mode: 'single' })])));
+      vi.spyOn(apiService, 'getFormulaList').mockReturnValue(of(makeList([makeFormula({ component_mode: 'single' })])));
       fixture.detectChanges();
 
       const chip = fixture.debugElement.query(By.css('.mode-single'));
@@ -290,7 +290,7 @@ describe('FormulaMatrixComponent', () => {
     });
 
     it('should render correct mode chip for double component', () => {
-      vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(of(makeMatrix([makeFormula({ component_mode: 'double' })])));
+      vi.spyOn(apiService, 'getFormulaList').mockReturnValue(of(makeList([makeFormula({ component_mode: 'double' })])));
       fixture.detectChanges();
 
       const chip = fixture.debugElement.query(By.css('.mode-double'));
@@ -299,7 +299,7 @@ describe('FormulaMatrixComponent', () => {
     });
 
     it('should render active status chip correctly', () => {
-      vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(of(makeMatrix([makeFormula({ status: 'active' })])));
+      vi.spyOn(apiService, 'getFormulaList').mockReturnValue(of(makeList([makeFormula({ status: 'active' })])));
       fixture.detectChanges();
 
       const chip = fixture.debugElement.query(By.css('.status-active'));
@@ -308,7 +308,7 @@ describe('FormulaMatrixComponent', () => {
     });
 
     it('should render draft status chip correctly', () => {
-      vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(of(makeMatrix([makeFormula({ status: 'draft' })])));
+      vi.spyOn(apiService, 'getFormulaList').mockReturnValue(of(makeList([makeFormula({ status: 'draft' })])));
       fixture.detectChanges();
 
       const chip = fixture.debugElement.query(By.css('.status-draft'));
@@ -317,7 +317,7 @@ describe('FormulaMatrixComponent', () => {
     });
 
     it('should display correct parts count', () => {
-      vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(of(makeMatrix([makeFormula({
+      vi.spyOn(apiService, 'getFormulaList').mockReturnValue(of(makeList([makeFormula({
         parts: [
           { id: 'p-a', formula_id: 'f-001', name: 'PartA', mix_ratio: 50, sort_order: 1, ingredients: [] },
           { id: 'p-b', formula_id: 'f-001', name: 'PartB', mix_ratio: 50, sort_order: 2, ingredients: [] },
@@ -331,7 +331,7 @@ describe('FormulaMatrixComponent', () => {
     });
 
     it('should display correct steps count', () => {
-      vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(of(makeMatrix([makeFormula({
+      vi.spyOn(apiService, 'getFormulaList').mockReturnValue(of(makeList([makeFormula({
         steps: [
           { id: 's1', formula_id: 'f-001', part_id: null, step_no: 1, name: 'S1', temperature: '20C', duration: '5min' },
           { id: 's2', formula_id: 'f-001', part_id: null, step_no: 2, name: 'S2', temperature: '30C', duration: '10min' },
