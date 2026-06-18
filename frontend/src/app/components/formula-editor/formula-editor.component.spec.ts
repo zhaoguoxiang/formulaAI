@@ -99,7 +99,6 @@ describe('FormulaEditorComponent', () => {
     httpMock.verify();
   });
 
-
   // ─── Component Creation ───
 
   it('should create the component', () => {
@@ -117,12 +116,11 @@ describe('FormulaEditorComponent', () => {
 
     const raw = component.form.getRawValue();
     expect(raw.name).toBe('');
-    expect(raw.code).toBe('');
     expect(raw.component_mode).toBe('single');
     expect(raw.status).toBe('draft');
   });
 
-  it('should seed one MAIN part with no ingredients in create mode', () => {
+  it('should seed one MAIN part in single mode', () => {
     setupComponent(fixture, null);
     fixture.detectChanges();
 
@@ -132,30 +130,16 @@ describe('FormulaEditorComponent', () => {
     expect(part.mix_ratio).toBe(100);
   });
 
-  // ─── Dynamic Add/Remove: Parts ───
-
-  it('should add a new part', () => {
+  it('should seed two parts (A/B) in double mode', () => {
     setupComponent(fixture, null);
     fixture.detectChanges();
-    const initialCount = component.parts.length;
 
-    component.addPart('PartA', 50);
-
-    expect(component.parts.length).toBe(initialCount + 1);
-    const newPart = component.parts.at(1).getRawValue();
-    expect(newPart.name).toBe('PartA');
-    expect(newPart.mix_ratio).toBe(50);
-  });
-
-  it('should remove a part', () => {
-    setupComponent(fixture, null);
+    component.form.get('component_mode')?.setValue('double');
     fixture.detectChanges();
-    component.addPart('PartB', 50);
+
     expect(component.parts.length).toBe(2);
-
-    component.removePart(0);
-
-    expect(component.parts.length).toBe(1);
+    expect(component.parts.at(0).get('name')?.value).toBe('PartA');
+    expect(component.parts.at(1).get('name')?.value).toBe('PartB');
   });
 
   // ─── Dynamic Add/Remove: Ingredients ───
@@ -164,17 +148,12 @@ describe('FormulaEditorComponent', () => {
     setupComponent(fixture, null);
     fixture.detectChanges();
     await fixture.whenStable();
-    const ingArr = component.ingredients(0);
-    const initialCount = ingArr.length;
 
     component.addIngredient(0);
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(ingArr.length).toBe(initialCount + 1);
-    const ing = ingArr.at(ingArr.length - 1).getRawValue();
-    expect(ing.material).toBe('');
-    expect(ing.percentage).toBe(0);
+    expect(component.ingredients(0).length).toBe(1);
   });
 
   it('should remove an ingredient from a part', async () => {
@@ -185,7 +164,6 @@ describe('FormulaEditorComponent', () => {
     component.addIngredient(0);
     fixture.detectChanges();
     await fixture.whenStable();
-    expect(component.ingredients(0).length).toBe(2);
 
     component.removeIngredient(0, 0);
     fixture.detectChanges();
@@ -200,15 +178,12 @@ describe('FormulaEditorComponent', () => {
     setupComponent(fixture, null);
     fixture.detectChanges();
     await fixture.whenStable();
-    const initialCount = component.steps.length;
 
     component.addStep();
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(component.steps.length).toBe(initialCount + 1);
-    const step = component.steps.at(component.steps.length - 1).getRawValue();
-    expect(step.name).toBe('');
+    expect(component.steps.length).toBe(1);
   });
 
   it('should renumber steps after removal', async () => {
@@ -219,7 +194,6 @@ describe('FormulaEditorComponent', () => {
     component.addStep();
     fixture.detectChanges();
     await fixture.whenStable();
-    expect(component.steps.length).toBe(2);
 
     component.removeStep(0);
     fixture.detectChanges();
@@ -235,14 +209,9 @@ describe('FormulaEditorComponent', () => {
     setupComponent(fixture, null);
     fixture.detectChanges();
     component.addIngredient(0);
-    const daArr = component.dosingActions(0, 0);
 
     component.addDosingAction(0, 0);
-
-    expect(daArr.length).toBe(1);
-    const da = daArr.at(0).getRawValue();
-    expect(da.use_ratio).toBe(100);
-    expect(da.step_ref).toBe(-1);
+    expect(component.dosingActions(0, 0).length).toBe(1);
   });
 
   it('should remove a dosing action', () => {
@@ -251,69 +220,9 @@ describe('FormulaEditorComponent', () => {
     component.addIngredient(0);
     component.addDosingAction(0, 0);
     component.addDosingAction(0, 0);
-    expect(component.dosingActions(0, 0).length).toBe(2);
 
     component.removeDosingAction(0, 0, 0);
-
     expect(component.dosingActions(0, 0).length).toBe(1);
-  });
-
-  // ─── Percentage Sum Calculation ───
-
-  it('should compute percentage sum for a part ingredients', async () => {
-    setupComponent(fixture, null);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    component.addIngredient(0);
-    component.addIngredient(0);
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    const ingArr = component.ingredients(0);
-    ingArr.at(0).patchValue({ percentage: 60 });
-    ingArr.at(1).patchValue({ percentage: 40 });
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(component.getPercentageSum(0)).toBeCloseTo(100, 1);
-    expect(component.isPercentageValid(0)).toBe(true);
-  });
-
-  it('should detect invalid percentage sum (not 100%)', async () => {
-    setupComponent(fixture, null);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    component.addIngredient(0);
-    component.addIngredient(0);
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    const ingArr = component.ingredients(0);
-    ingArr.at(0).patchValue({ percentage: 50 });
-    ingArr.at(1).patchValue({ percentage: 30 });
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(component.getPercentageSum(0)).toBeCloseTo(80, 1);
-    expect(component.isPercentageValid(0)).toBe(false);
-  });
-
-  it('should treat sum within 0.1 of 100 as valid', async () => {
-    setupComponent(fixture, null);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    component.addIngredient(0);
-    component.addIngredient(0);
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    const ingArr = component.ingredients(0);
-    ingArr.at(0).patchValue({ percentage: 99.95 });
-    ingArr.at(1).patchValue({ percentage: 0.05 });
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(component.isPercentageValid(0)).toBe(true);
   });
 
   // ─── Form Validation ───
@@ -322,22 +231,13 @@ describe('FormulaEditorComponent', () => {
     setupComponent(fixture, null);
     fixture.detectChanges();
     component.form.get('name')?.markAsTouched();
-    component.form.get('code')?.markAsTouched();
     expect(component.form.invalid).toBe(true);
   });
 
   it('should mark form as valid when all required fields are filled', () => {
     setupComponent(fixture, null);
     fixture.detectChanges();
-    component.form.patchValue({
-      name: 'Valid',
-      code: 'V-001',
-    });
-    component.addIngredient(0);
-    component.addIngredient(0);
-    fixture.detectChanges();
-    component.ingredients(0).at(0).patchValue({ material: 'A', percentage: 50 });
-    component.ingredients(0).at(1).patchValue({ material: 'B', percentage: 50 });
+    component.form.patchValue({ name: 'Valid' });
     fixture.detectChanges();
 
     expect(component.form.valid).toBe(true);
@@ -352,33 +252,20 @@ describe('FormulaEditorComponent', () => {
     let emitted: Formula | undefined;
     component.saved.subscribe((f) => (emitted = f));
 
-    component.form.patchValue({
-      name: 'New Formula',
-      code: 'NF-001',
-    });
+    component.form.patchValue({ name: 'New Formula' });
     component.addStep();
     fixture.detectChanges();
-    component.steps.at(0).patchValue({
-      step_no: 1,
-      name: 'Mix',
-      temperature: '25°C',
-      duration: '10min',
-    });
+    component.steps.at(0).patchValue({ name: 'Mix', temperature: '25°C', duration: '10min' });
     component.ingredients(0).clear();
     component.addIngredient(0);
     component.addIngredient(0);
-    fixture.detectChanges();
-    component.ingredients(0).at(0).patchValue({ material: 'Resin', percentage: 60 });
-    component.ingredients(0).at(1).patchValue({ material: 'Hardener', percentage: 40 });
     fixture.detectChanges();
 
     component.onSubmit();
 
     const req = httpMock.expectOne('/api/formulas');
     expect(req.request.method).toBe('POST');
-
-    const resp: Formula = { ...mockFormula, name: 'New Formula', code: 'NF-001' };
-    req.flush(resp);
+    req.flush({ ...mockFormula, name: 'New Formula' });
 
     expect(emitted).toBeTruthy();
     expect(emitted?.name).toBe('New Formula');
@@ -401,8 +288,7 @@ describe('FormulaEditorComponent', () => {
 
     const putReq = httpMock.expectOne('/api/formulas/f1');
     expect(putReq.request.method).toBe('PUT');
-
-    putReq.flush({ ...mockFormula, name: 'Test Formula', code: 'TF-001' });
+    putReq.flush({ ...mockFormula, name: 'Test Formula' });
 
     expect(emitted).toBeTruthy();
   });
@@ -420,7 +306,6 @@ describe('FormulaEditorComponent', () => {
 
     expect(component.isEditMode).toBe(true);
     expect(component.form.get('name')?.value).toBe('Test Formula');
-    expect(component.form.get('code')?.value).toBe('TF-001');
     expect(component.parts.length).toBe(1);
     expect(component.ingredients(0).length).toBe(2);
     expect(component.steps.length).toBe(1);

@@ -20,8 +20,8 @@
     background: var(--mat-sys-surface-container-low, #F4EFF4);
     border-bottom: 1px solid var(--mat-sys-outline-variant, #CAC4D0);
     flex-wrap: wrap;
-    gap: 2px;
-    padding: 2px 4px;
+    gap: var(--app-spacing-xxs, 2px);
+    padding: var(--app-spacing-xxs, 2px) var(--app-spacing-xs, 4px);
 
     .vditor-toolbar__item {
       color: var(--mat-sys-on-surface-variant, #49454F);
@@ -47,7 +47,7 @@
   .vditor-reset {
     font-size: var(--mat-sys-body-medium-size, 0.875rem);
     line-height: 1.6;
-    padding: 12px 16px;
+    padding: var(--app-spacing-sm, 8px) var(--app-spacing-md, 16px);
 
     h1, h2, h3, h4, h5, h6 {
       color: var(--mat-sys-on-surface, #1D1B20);

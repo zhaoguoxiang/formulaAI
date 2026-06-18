@@ -6,16 +6,42 @@
   <div class="section-header">
     <mat-icon class="section-icon">assignment</mat-icon>
     <h2 class="section-title">测试大纲</h2>
-    <span class="edit-version-badge">
-      <mat-icon>history</mat-icon>
-      v{{ editOutlineVersion() || 1 }}
-    </span>
+    @if (dirty()) {
+      <span class="dirty-badge">
+        <span class="dirty-dot"></span>
+        未保存
+      </span>
+    }
+    @if (versions().length > 0) {
+      <mat-form-field appearance="outline" class="version-select">
+        <mat-label>历史版本</mat-label>
+        <mat-select [value]="selectedVersionId()" (selectionChange)="onVersionChange($event.value)">
+          @for (v of versions(); track v.id) {
+            <mat-option [value]="v.id" [matTooltip]="v.version_note || ''">
+              v{{ v.version }}{{ v.status === 'active' ? ' (当前)' : '' }}{{ v.version_note ? ' — ' + (v.version_note.length > 20 ? v.version_note.slice(0, 20) + '…' : v.version_note) : '' }}
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    } @else {
+      <span class="edit-version-badge">
+        <mat-icon>history</mat-icon>
+        v{{ editOutlineVersion() || 1 }}
+      </span>
+    }
   </div>
 
   @if (loading()) {
-    <div class="state-container">
-      <mat-spinner diameter="40" />
-      <p class="state-text">正在加载…</p>
+    <div class="skeleton-card">
+      @for (_ of [1,2,3]; track _) {
+        <div class="skeleton-row">
+          <div class="skeleton skeleton-avatar"></div>
+          <div class="skeleton-text-block">
+            <div class="skeleton skeleton-wave skeleton-text-lg"></div>
+            <div class="skeleton skeleton-wave skeleton-text-sm"></div>
+          </div>
+        </div>
+      }
     </div>
   } @else if (error()) {
     <div class="state-container">
@@ -23,15 +49,27 @@
         <mat-icon class="state-icon">error_outline</mat-icon>
       </div>
       <p class="state-text error-text">{{ error() }}</p>
-      <button mat-stroked-button color="primary" (click)="loadOutline()">
+      <button mat-stroked-button (click)="loadOutline()">
         <mat-icon>refresh</mat-icon>
         重试
       </button>
     </div>
   } @else {
+    <!-- ═══ Search Bar ═══ -->
+    @if (editForm.items.length > 0) {
+      <div class="outline-search-bar">
+        <mat-form-field appearance="outline" class="outline-search-field">
+          <mat-label>搜索指标</mat-label>
+          <input matInput [(ngModel)]="indicatorSearch" (ngModelChange)="markDirty()" placeholder="按名称、单位或测试条件搜索..." />
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+      </div>
+    }
+
     <mat-card class="edit-card">
 
       @for (item of editForm!.items; track itemIdx; let itemIdx = $index) {
+        @if (itemHasMatchingIndicator(itemIdx)) {
         <div class="edit-item-section">
           <div class="edit-item-header">
             <button mat-icon-button class="item-collapse-btn" (click)="toggleItemCollapse(itemIdx)"
@@ -40,70 +78,105 @@
             </button>
             <mat-form-field appearance="outline" class="edit-item-name-field">
               <mat-label>检测项名称</mat-label>
-              <input matInput [(ngModel)]="item.name" />
+              <input matInput [(ngModel)]="item.name" (ngModelChange)="markDirty()" />
             </mat-form-field>
+            <span class="item-indicator-badge" *ngIf="item.indicators.length > 0">
+              {{ item.indicators.length }} 个指标
+            </span>
+            <button mat-icon-button class="collapse-indicators-btn"
+                    (click)="isAllIndicatorsCollapsed() ? expandAllIndicators() : collapseAllIndicators()"
+                    matTooltip="全部展开/折叠指标"
+                    [disabled]="item.indicators.length === 0">
+              <mat-icon>{{ isAllIndicatorsCollapsed() ? 'unfold_more' : 'unfold_less' }}</mat-icon>
+            </button>
             <button mat-icon-button color="warn" (click)="removeItem(itemIdx)" matTooltip="删除检测项">
               <mat-icon>delete</mat-icon>
             </button>
           </div>
 
           @if (!isItemCollapsed(itemIdx)) {
-            @for (ind of item.indicators; track indIdx; let indIdx = $index) {
-              <div class="edit-indicator-card">
-                <div class="indicator-card-header">
-                  <span class="indicator-card-index">指标 #{{ indIdx + 1 }}</span>
-                  <button mat-icon-button color="warn" (click)="removeIndicator(itemIdx, indIdx)" matTooltip="删除指标">
-                    <mat-icon>delete</mat-icon>
-                  </button>
-                </div>
+            <div cdkDropList
+                 class="indicator-drop-list"
+                 (cdkDropListDropped)="dropIndicator($event, itemIdx)">
+              @for (ind of item.indicators; track indIdx; let indIdx = $index) {
+                @if (indicatorMatchesSearch(itemIdx, indIdx)) {
+                  <div class="edit-indicator-card" cdkDrag [cdkDragDisabled]="indicatorSearch().length > 0">
+                    <div class="indicator-card-header">
+                      <mat-icon class="drag-handle" cdkDragHandle *ngIf="!indicatorSearch()">drag_indicator</mat-icon>
+                      <button mat-icon-button class="indicator-collapse-btn"
+                              (click)="toggleIndicatorCollapse(itemIdx, indIdx)"
+                              [attr.aria-label]="isIndicatorCollapsed(itemIdx, indIdx) ? '展开指标' : '折叠指标'">
+                        <mat-icon>{{ isIndicatorCollapsed(itemIdx, indIdx) ? 'chevron_right' : 'expand_more' }}</mat-icon>
+                      </button>
+                      <span class="indicator-card-index">指标 #{{ indIdx + 1 }}</span>
+                      @if (isIndicatorCollapsed(itemIdx, indIdx) && ind.name) {
+                        <span class="indicator-card-name-preview">{{ ind.name }}</span>
+                      } @else if (!ind.name) {
+                        <span class="indicator-card-name-hint">未命名</span>
+                      }
+                      <button mat-icon-button color="warn" (click)="removeIndicator(itemIdx, indIdx)" matTooltip="删除指标">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </div>
 
-                <div class="indicator-short-fields">
-                  <mat-form-field appearance="outline" class="field-name">
-                    <mat-label>指标名称</mat-label>
-                    <input matInput [(ngModel)]="ind.name" />
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="field-unit">
-                    <mat-label>单位</mat-label>
-                    <input matInput [(ngModel)]="ind.unit" />
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="field-min">
-                    <mat-label>最小值</mat-label>
-                    <input matInput type="number" [(ngModel)]="ind.min_value" />
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="field-max">
-                    <mat-label>最大值</mat-label>
-                    <input matInput type="number" [(ngModel)]="ind.max_value" />
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" class="field-condition">
-                    <mat-label>测试条件</mat-label>
-                    <input matInput [(ngModel)]="ind.test_condition" />
-                  </mat-form-field>
-                </div>
+                    @if (!isIndicatorCollapsed(itemIdx, indIdx)) {
+                      <div class="indicator-card-body">
+                        <div class="indicator-short-fields">
+                          <mat-form-field appearance="outline" class="field-name">
+                            <mat-label>指标名称</mat-label>
+                            <input matInput [(ngModel)]="ind.name" (ngModelChange)="markDirty()"
+                                   [class.field-error]="!ind.name" />
+                          </mat-form-field>
+                          <mat-form-field appearance="outline" class="field-unit">
+                            <mat-label>单位</mat-label>
+                            <input matInput [(ngModel)]="ind.unit" (ngModelChange)="markDirty()" />
+                          </mat-form-field>
+                          <mat-form-field appearance="outline" class="field-min">
+                            <mat-label>最小值</mat-label>
+                            <input matInput type="number" [(ngModel)]="ind.min_value" (ngModelChange)="markDirty()" />
+                          </mat-form-field>
+                          <mat-form-field appearance="outline" class="field-max">
+                            <mat-label>最大值</mat-label>
+                            <input matInput type="number" [(ngModel)]="ind.max_value" (ngModelChange)="markDirty()" />
+                          </mat-form-field>
+                          <mat-form-field appearance="outline" class="field-condition">
+                            <mat-label>测试条件</mat-label>
+                            <input matInput [(ngModel)]="ind.test_condition" (ngModelChange)="markDirty()" />
+                          </mat-form-field>
+                        </div>
 
-                <div class="indicator-long-fields">
-                  <label class="field-label">制样方法</label>
-                  <app-milkdown-field [(value)]="ind.sample_prep_method" />
+                        <div class="indicator-long-fields">
+                          <label class="field-label">制样方法</label>
+                          <app-milkdown-field [(value)]="ind.sample_prep_method" (valueChange)="markDirty()" />
 
-                  <label class="field-label">检测方法</label>
-                  <app-milkdown-field [(value)]="ind.test_method" />
-                </div>
-              </div>
-            }
+                          <label class="field-label">检测方法</label>
+                          <app-milkdown-field [(value)]="ind.test_method" (valueChange)="markDirty()" />
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+              }
+            </div>
 
-            <button mat-stroked-button (click)="addIndicator(itemIdx)" class="add-indicator-btn">
+            <button mat-stroked-button (click)="addIndicator(itemIdx)" class="app-btn-compact add-indicator-btn">
               <mat-icon>add</mat-icon>
               添加指标
             </button>
           }
         </div>
+        }
       }
 
-      <button mat-stroked-button (click)="addItem()" class="add-item-btn">
+      <button mat-stroked-button (click)="addItem()" class="app-btn-compact add-item-btn">
         <mat-icon>add</mat-icon>
         添加检测项
       </button>
 
       <div class="edit-actions">
+        @if (dirty()) {
+          <span class="dirty-hint">有未保存的修改</span>
+        }
         <button mat-raised-button color="primary" (click)="saveOutline()" [disabled]="saving()">
           @if (saving()) {
             <mat-spinner diameter="20" class="save-spinner" />

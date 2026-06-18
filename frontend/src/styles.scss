@@ -140,13 +140,61 @@ $formulai-palette: (
 
 /* ═══ App-Level Spacing Tokens (M3 8dp Grid) ═══ */
 :root {
+  --app-spacing-xxs: 2px;
   --app-spacing-xs:  4px;
   --app-spacing-sm:  8px;
   --app-spacing-md:  16px;
   --app-spacing-lg:  24px;
   --app-spacing-xl:  32px;
   --app-spacing-2xl: 48px;
-  --app-spacing-3xl: 64px;
+
+  /* Icon sizes */
+  --app-icon-xs:  16px;
+  --app-icon-sm:  18px;
+  --app-icon-md:  28px;
+  --app-icon-lg:  32px;
+  --app-icon-xl:  48px;
+  --app-icon-2xl: 64px;
+
+  /* Shapes */
+  --app-shape-circle: 50%;
+  --app-shape-xs:  4px;
+  --app-shape-sm:  8px;
+  --app-shape-md:  12px;
+  --app-shape-lg:  16px;
+  --app-shape-xl:  24px;
+  --app-shape-full: 9999px;
+
+  /* Shadows / Elevation */
+  --app-shadow-xs:  0 1px 2px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+  --app-shadow-sm:  0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --app-shadow-md:  0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --app-shadow-lg:  0 8px 24px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04);
+
+  /* Transitions */
+  --app-transition-fast: 150ms cubic-bezier(0.2, 0, 0, 1);
+  --app-transition-normal: 250ms cubic-bezier(0.2, 0, 0, 1);
+  --app-transition-slow: 350ms cubic-bezier(0.2, 0, 0, 1);
+
+  /* Chips & badges */
+  --app-chip-padding: 2px 12px;
+
+  /* Layout */
+  --app-sidebar-width:     360px;
+  --app-sidebar-min-width: 280px;
+  --app-sidebar-max-width: 420px;
+
+  /* Button heights */
+  --app-btn-height:         36px;
+  --app-btn-height-compact: 32px;
+}
+
+/* ═══ App-Level Utility Classes ═══ */
+
+.app-btn-compact {
+  height: var(--app-btn-height-compact, 32px);
+  font-size: var(--mat-sys-label-medium-size, 0.75rem);
+  border-radius: var(--app-shape-full, 9999px);
 }
 
 /* ═══ Global Reset & Base ═══ */
@@ -207,13 +255,258 @@ body {
   overflow: hidden;
 }
 
-/* Card content full-height for flex layouts */
+/* Tab group — M3 style tabs with refined indicator */
+.mat-mdc-tab-group {
+  --mat-tab-header-active-label-text-color: var(--mat-sys-primary, #6750A4);
+  --mat-tab-header-inactive-label-text-color: var(--mat-sys-on-surface-variant, #49454F);
+}
+
+.mat-mdc-tab-header {
+  border-bottom: 1px solid var(--mat-sys-outline-variant, #CAC4D0);
+}
+
+.mat-mdc-tab .mdc-tab__text-label {
+  font-weight: 500;
+  font-size: var(--mat-sys-label-large-size, 0.875rem);
+}
+
+.mat-mdc-tab.mat-mdc-tab-active .mdc-tab__text-label {
+  font-weight: 600;
+}
+
+/* Cards — M3 elevated card with refined styling */
 mat-card {
   display: flex;
   flex-direction: column;
+  border-radius: var(--app-shape-md, 12px);
+  box-shadow: var(--app-shadow-xs) !important;
+  transition: box-shadow var(--app-transition-fast);
+}
+
+mat-card:hover {
+  box-shadow: var(--app-shadow-sm) !important;
 }
 
 mat-card-content {
   flex: 1;
   min-height: 0;
+}
+
+/* Buttons — refined compact style */
+.mat-mdc-stroked-button, .mat-mdc-outlined-button {
+  border-radius: var(--app-shape-full, 9999px);
+}
+
+.mat-mdc-flat-button, .mat-mdc-raised-button {
+  border-radius: var(--app-shape-full, 9999px);
+}
+
+/* Form fields — M3 outlined style */
+.mat-mdc-form-field {
+  font-size: var(--mat-sys-body-medium-size, 0.875rem);
+}
+
+/* Snackbar */
+.mat-mdc-snack-bar-container {
+  border-radius: var(--app-shape-md, 12px) !important;
+}
+
+/* Dialog / overlay */
+.mat-mdc-dialog-container {
+  border-radius: var(--app-shape-lg, 16px) !important;
+}
+
+/* Tooltip */
+.mat-mdc-tooltip {
+  border-radius: var(--app-shape-xs, 4px) !important;
+  font-size: var(--mat-sys-label-small-size, 0.6875rem);
+}
+
+/* Section cards — used in editor */
+.section-card {
+  border-radius: var(--app-shape-md, 12px);
+  box-shadow: var(--app-shadow-xs) !important;
+  border: 1px solid var(--mat-sys-outline-variant, #CAC4D0);
+  transition: box-shadow var(--app-transition-fast);
+
+  &:hover {
+    box-shadow: var(--app-shadow-sm) !important;
+  }
+}
+
+/* Empty state hint — used in various components */
+.empty-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--app-spacing-sm, 8px);
+  padding: var(--app-spacing-lg, 24px);
+  color: var(--mat-sys-on-surface-variant, #49454F);
+  border: 1px dashed var(--mat-sys-outline-variant, #CAC4D0);
+  border-radius: var(--app-shape-md, 12px);
+  font-size: var(--mat-sys-body-medium-size, 0.875rem);
+  background: var(--mat-sys-surface-container-lowest, #F3EDF7);
+}
+
+/* Chip / badge base */
+.app-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--app-chip-padding, 2px 12px);
+  border-radius: var(--app-shape-full, 9999px);
+  font-size: var(--mat-sys-label-medium-size, 0.75rem);
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* Section title with icon */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--app-spacing-sm, 8px);
+  font-size: var(--mat-sys-title-medium-size, 1rem);
+  font-weight: 600;
+  color: var(--mat-sys-on-surface, #1D1B20);
+  margin: 0;
+
+  .section-icon {
+    color: var(--mat-sys-primary, #6750A4);
+  }
+
+/* ═══ Skeleton Loaders ═══ */
+
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes skeletonWave {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: var(--mat-sys-surface-container, #F3EDF7);
+  border-radius: var(--app-shape-xs, 4px);
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-wave {
+  background: linear-gradient(
+    90deg,
+    var(--mat-sys-surface-container, #F3EDF7) 25%,
+    var(--mat-sys-surface-container-high, #E6E1E5) 50%,
+    var(--mat-sys-surface-container, #F3EDF7) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonWave 1.8s ease-in-out infinite;
+  border-radius: var(--app-shape-xs, 4px);
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 8px;
+  width: 100%;
+}
+
+.skeleton-text-sm {
+  height: 10px;
+  margin-bottom: 6px;
+  width: 70%;
+}
+
+.skeleton-text-lg {
+  height: 18px;
+  margin-bottom: 10px;
+  width: 85%;
+}
+
+.skeleton-avatar {
+  border-radius: var(--app-shape-circle, 50%);
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: var(--app-spacing-md, 16px);
+  padding: var(--app-spacing-sm, 8px) 0;
+
+  .skeleton-text-block {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+}
+
+.skeleton-card {
+  padding: var(--app-spacing-md, 16px);
+  border-radius: var(--app-shape-md, 12px);
+  background: var(--mat-sys-surface, #FEF7FF);
+  border: 1px solid var(--mat-sys-outline-variant, #CAC4D0);
+}
+
+.skeleton-table-row {
+  display: flex;
+  align-items: center;
+  gap: var(--app-spacing-md, 16px);
+  padding: var(--app-spacing-sm, 8px) var(--app-spacing-md, 16px);
+  height: 48px;
+
+  .skeleton-cell {
+    height: 12px;
+    border-radius: var(--app-shape-xs, 4px);
+    background: var(--mat-sys-surface-container, #F3EDF7);
+    animation: skeletonPulse 1.5s ease-in-out infinite;
+
+    &:nth-child(1) { width: 40px; }
+    &:nth-child(2) { width: 80px; }
+    &:nth-child(3) { flex: 1; }
+    &:nth-child(4) { width: 72px; }
+    &:nth-child(5) { width: 56px; }
+    &:nth-child(6) { width: 56px; }
+    &:nth-child(7) { width: 64px; }
+    &:nth-child(8) { width: 100px; }
+  }
+}
+
+/* ═══ Scroll-to-Top FAB ═══ */
+
+.scroll-top-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 100;
+  opacity: 0;
+  transform: translateY(12px) scale(0.85);
+  pointer-events: none;
+  transition: opacity var(--app-transition-normal),
+              transform var(--app-transition-normal);
+
+  &.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+}
+
+/* ═══ Dark Theme Overrides ═══ */
+.dark-theme {
+  color-scheme: dark;
+
+  body {
+    background: var(--mat-sys-surface, #141218);
+    color: var(--mat-sys-on-surface, #E6E1E5);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--mat-sys-outline-variant, #49454F);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--mat-sys-outline, #938F99);
+  }
+}
 }

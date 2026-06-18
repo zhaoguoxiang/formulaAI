@@ -10,13 +10,6 @@
   },
   "private": true,
   "packageManager": "npm@11.11.0",
-  "overrides": {
-    "@copilotkitnext/angular": {
-      "@angular/cdk": "$@angular/cdk",
-      "@angular/common": "$@angular/common",
-      "@angular/core": "$@angular/core"
-    }
-  },
   "dependencies": {
     "@angular/animations": "^22.0.1",
     "@angular/cdk": "^22.0.1",
@@ -27,11 +20,6 @@
     "@angular/material": "^22.0.1",
     "@angular/platform-browser": "^22.0.1",
     "@angular/router": "^22.0.1",
-    "@copilotkit/core": "^1.60.1",
-    "@copilotkitnext/angular": "^1.54.3",
-    "@copilotkitnext/core": "^1.54.1",
-    "chart.js": "^4.5.1",
-    "ng2-charts": "^10.0.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "vditor": "^3.11.2"

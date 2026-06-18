@@ -6,49 +6,88 @@
   overflow: hidden;
 }
 
-/* Toolbar */
+/* Toolbar — refined with background blur */
 mat-toolbar {
   flex-shrink: 0;
-  z-index: 1;
+  z-index: 2;
+  height: 56px;
+  padding: 0 var(--app-spacing-lg, 24px);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
 }
 
 .app-title {
-  font: var(--mat-sys-title-large-font, 400 1.375rem/1.75rem 'DM Sans', Roboto, sans-serif);
   font-size: var(--mat-sys-title-large-size, 1.375rem);
   line-height: var(--mat-sys-title-large-line-height, 1.75rem);
-  font-weight: 600;
-  letter-spacing: 0;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   color: inherit;
 }
 
-/* Main layout container — M3 standard padding = 16px (2 × 8dp) */
+.toolbar-spacer {
+  flex: 1;
+}
+
+.sidebar-toggle-btn {
+  transition: transform var(--app-transition-normal);
+  opacity: 0.8;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.dark-toggle-btn {
+  transition: transform var(--app-transition-normal);
+  opacity: 0.8;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+/* Main layout container */
 .app-container {
   display: flex;
   flex: 1;
   overflow: hidden;
   gap: var(--app-spacing-md, 16px);
   padding: var(--app-spacing-md, 16px);
+  background: var(--mat-sys-surface-container-lowest, #F3EDF7);
 }
 
-/* Main content area — flexible */
+/* Main content area */
 .app-main {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: margin-right var(--app-transition-normal);
 }
 
-/* Main card inside app-main — M3 elevated card */
-.app-main > mat-card,
+/* Main card inside app-main */
+.app-main > mat-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  box-shadow: var(--app-shadow-sm) !important;
+  border: none;
+
+  &:hover {
+    box-shadow: var(--app-shadow-sm) !important;
+  }
+}
+
 .app-main > mat-card > mat-card-content {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  padding: 0;
 }
 
-/* Mat tab group inside the main card should fill the space */
+/* Mat tab group */
 .app-main mat-tab-group {
   flex: 1;
   min-height: 0;
@@ -56,13 +95,25 @@ mat-toolbar {
   flex-direction: column;
 }
 
-/* Sidebar — M3 sidebar width standard = 360dp */
+/* Sidebar */
 .app-sidebar {
-  width: 360px;
-  min-width: 280px;
-  max-width: 420px;
+  width: var(--app-sidebar-width, 360px);
+  min-width: var(--app-sidebar-min-width, 280px);
+  max-width: var(--app-sidebar-max-width, 420px);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  transition: width var(--app-transition-normal),
+              opacity var(--app-transition-normal),
+              margin-right var(--app-transition-normal);
+}
+
+.app-sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+  max-width: 0;
+  margin-right: calc(var(--app-spacing-md, 16px) * -1);
+  opacity: 0;
   overflow: hidden;
 }

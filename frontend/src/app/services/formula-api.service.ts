@@ -14,11 +14,6 @@ export class FormulaApiService {
 
   constructor(private readonly http: HttpClient) {}
 
-  /** Fetch all formulas. */
-  getFormulas(): Observable<Formula[]> {
-    return this.http.get<Formula[]>(`${this.baseUrl}/formulas`);
-  }
-
   /** Fetch a single formula by ID. */
   getFormula(id: string): Observable<Formula> {
     return this.http.get<Formula>(`${this.baseUrl}/formulas/${id}`);
@@ -46,10 +41,5 @@ export class FormulaApiService {
       params = params.set('component_mode', componentMode);
     }
     return this.http.get<FormulaMatrix>(`${this.baseUrl}/formulas/matrix`, { params });
-  }
-
-  /** Fetch analysis data from a named endpoint. */
-  getAnalysis(endpoint: string): Observable<unknown> {
-    return this.http.get<unknown>(`${this.baseUrl}/analysis/${endpoint}`);
   }
 }

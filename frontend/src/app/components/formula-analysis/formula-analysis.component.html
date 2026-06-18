@@ -1,158 +1,42 @@
-<!-- ═══════════════════════════════════════════════
-     Formula Analysis Dashboard — 配方分析看板
-     ═══════════════════════════════════════════════ -->
-
-<section class="analysis-dashboard">
-  <!-- ── Row 1: Mode Ratio (Pie) + Ingredient Frequency (Horizontal Bar) ── -->
-  <div class="chart-row">
-    <mat-card class="chart-card">
-      <mat-card-header>
-        <mat-card-title>
-          <mat-icon class="card-icon">pie_chart</mat-icon>
-          组分模式比例
-        </mat-card-title>
-      </mat-card-header>
-      <mat-card-content class="chart-body">
-        @if (modeRatio.loading) {
-          <div class="state-indicator">
-            <mat-spinner diameter="36" />
-            <span>正在加载...</span>
-          </div>
-        } @else if (modeRatio.error) {
-          <div class="state-indicator state-error">
-            <mat-icon>error_outline</mat-icon>
-            <span>{{ modeRatio.error }}</span>
-          </div>
-        } @else if (!modeRatio.data) {
-          <div class="state-indicator state-empty">
-            <mat-icon>inbox</mat-icon>
-            <span>暂无数据</span>
-          </div>
-        } @else {
-          <canvas
-            baseChart
-            class="chart-canvas"
-            [type]="'pie'"
-            [data]="modeRatioChartData"
-            [options]="modeRatioChartOptions"
-          ></canvas>
-        }
-      </mat-card-content>
-    </mat-card>
-
-    <mat-card class="chart-card">
-      <mat-card-header>
-        <mat-card-title>
-          <mat-icon class="card-icon">bar_chart</mat-icon>
-          原料使用频次 TOP 10
-        </mat-card-title>
-      </mat-card-header>
-      <mat-card-content class="chart-body">
-        @if (ingredientFreq.loading) {
-          <div class="state-indicator">
-            <mat-spinner diameter="36" />
-            <span>正在加载...</span>
-          </div>
-        } @else if (ingredientFreq.error) {
-          <div class="state-indicator state-error">
-            <mat-icon>error_outline</mat-icon>
-            <span>{{ ingredientFreq.error }}</span>
-          </div>
-        } @else if (!ingredientFreq.data) {
-          <div class="state-indicator state-empty">
-            <mat-icon>inbox</mat-icon>
-            <span>暂无数据</span>
-          </div>
-        } @else {
-          <canvas
-            baseChart
-            class="chart-canvas"
-            [type]="'bar'"
-            [data]="ingredientFreqChartData"
-            [options]="ingredientFreqChartOptions"
-          ></canvas>
-        }
-      </mat-card-content>
-    </mat-card>
+<section class="analysis-placeholder">
+  <div class="analysis-hero">
+    <div class="hero-icon-wrapper">
+      <mat-icon class="hero-icon">analytics</mat-icon>
+    </div>
+    <h2 class="hero-title">配方分析</h2>
+    <p class="hero-desc">
+      通过 AI 引擎对配方数据进行深度分析，帮助你发现趋势、优化配方组成。
+    </p>
   </div>
 
-  <!-- ── Row 2: Step Distribution (Bar) + Dosing Methods (Table) ── -->
-  <div class="chart-row">
-    <mat-card class="chart-card">
-      <mat-card-header>
-        <mat-card-title>
-          <mat-icon class="card-icon">stacked_bar_chart</mat-icon>
-          步骤数分布
-        </mat-card-title>
-      </mat-card-header>
-      <mat-card-content class="chart-body">
-        @if (stepDistribution.loading) {
-          <div class="state-indicator">
-            <mat-spinner diameter="36" />
-            <span>正在加载...</span>
-          </div>
-        } @else if (stepDistribution.error) {
-          <div class="state-indicator state-error">
-            <mat-icon>error_outline</mat-icon>
-            <span>{{ stepDistribution.error }}</span>
-          </div>
-        } @else if (!stepDistribution.data) {
-          <div class="state-indicator state-empty">
-            <mat-icon>inbox</mat-icon>
-            <span>暂无数据</span>
-          </div>
-        } @else {
-          <canvas
-            baseChart
-            class="chart-canvas"
-            [type]="'bar'"
-            [data]="stepDistributionChartData"
-            [options]="stepDistributionChartOptions"
-          ></canvas>
-        }
-      </mat-card-content>
-    </mat-card>
+  <div class="feature-cards">
+    <div class="feature-card">
+      <div class="feature-icon feature-icon-primary">
+        <mat-icon>trending_up</mat-icon>
+      </div>
+      <h3 class="feature-title">趋势分析</h3>
+      <p class="feature-desc">追踪配方性能随时间的变化趋势，识别关键影响因素。</p>
+    </div>
 
-    <mat-card class="chart-card">
-      <mat-card-header>
-        <mat-card-title>
-          <mat-icon class="card-icon">table_rows</mat-icon>
-          投料方式统计
-        </mat-card-title>
-      </mat-card-header>
-      <mat-card-content class="chart-body table-body">
-        @if (dosingMethods.loading) {
-          <div class="state-indicator">
-            <mat-spinner diameter="36" />
-            <span>正在加载...</span>
-          </div>
-        } @else if (dosingMethods.error) {
-          <div class="state-indicator state-error">
-            <mat-icon>error_outline</mat-icon>
-            <span>{{ dosingMethods.error }}</span>
-          </div>
-        } @else if (!dosingMethods.data) {
-          <div class="state-indicator state-empty">
-            <mat-icon>inbox</mat-icon>
-            <span>暂无数据</span>
-          </div>
-        } @else {
-          <table mat-table [dataSource]="dosingMethods.data" class="dosing-table">
-            <ng-container matColumnDef="name">
-              <th mat-header-cell *matHeaderCellDef class="col-name">投料方式</th>
-              <td mat-cell *matCellDef="let row" class="col-name">{{ row.name }}</td>
-            </ng-container>
-            <ng-container matColumnDef="count">
-              <th mat-header-cell *matHeaderCellDef class="col-count">出现次数</th>
-              <td mat-cell *matCellDef="let row" class="col-count">
-                <span class="count-badge">{{ row.count }}</span>
-              </td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="dosingColumns"></tr>
-            <tr mat-row *matRowDef="let row; columns: dosingColumns"></tr>
-          </table>
-        }
-      </mat-card-content>
-    </mat-card>
+    <div class="feature-card">
+      <div class="feature-icon feature-icon-tertiary">
+        <mat-icon>compare_arrows</mat-icon>
+      </div>
+      <h3 class="feature-title">配方对比</h3>
+      <p class="feature-desc">多维度对比不同配方的组分、工艺和性能差异。</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon feature-icon-secondary">
+        <mat-icon>psychology</mat-icon>
+      </div>
+      <h3 class="feature-title">智能建议</h3>
+      <p class="feature-desc">基于历史数据和ML模型，推荐最佳配方参数组合。</p>
+    </div>
+  </div>
+
+  <div class="cta-section">
+    <p class="cta-text">请通过右侧 <strong>AI 配方助手</strong> 发起分析对话</p>
+    <mat-icon class="cta-arrow">arrow_forward</mat-icon>
   </div>
 </section>

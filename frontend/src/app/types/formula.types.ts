@@ -1,59 +1,76 @@
-// ─── Enums / Union Types matching Go domain models ───
-
-/** How components are organized in a formula (mirrors Go ComponentMode). */
 export type ComponentMode = 'single' | 'double';
-
-/** Lifecycle state of a formula (mirrors Go Status). */
 export type FormulaStatus = 'draft' | 'active' | 'archived';
-
-/** Standard part role in a formula (mirrors Go PartName). */
 export type PartName = 'PartA' | 'PartB' | 'PartMain';
 
-// ─── Domain Interfaces ───
-
-/** Dosing action that ties a step to an ingredient (mirrors Go FormulaDosingAction). */
-export interface FormulaDosingAction {
+export interface FormulaStepMaterial {
   id: string;
-  step_id: string;
-  ingredient_id: string;
-  dosing_order: number;
-  use_ratio: number;
-  dosing_method: string;
-}
-
-/** Material and its percentage in a formula part (mirrors Go FormulaIngredient). */
-export interface FormulaIngredient {
-  id: string;
-  part_id: string;
-  sort_order: number;
+  category_id: string;
   material: string;
   percentage: number;
   weight: number;
-  dosing_actions: FormulaDosingAction[];
+  batch_no: string;
+  unit: string;
+  sort_order: number;
 }
 
-/** Process step in a formula (mirrors Go FormulaStep). PartID is nullable. */
+export interface FormulaStepMaterialCategory {
+  id: string;
+  step_id: string;
+  name: string;
+  sort_order: number;
+  materials: FormulaStepMaterial[];
+}
+
+export interface FormulaStepParameter {
+  id: string;
+  step_id: string;
+  name: string;
+  value: string;
+  unit: string;
+  sort_order: number;
+}
+
 export interface FormulaStep {
   id: string;
   formula_id: string;
   part_id: string | null;
   step_no: number;
   name: string;
+  description: string;
+  instrument_name: string;
   temperature: string;
   duration: string;
+  categories: FormulaStepMaterialCategory[];
+  parameters: FormulaStepParameter[];
 }
 
-/** Component part (A, B, or Main) of a formula (mirrors Go FormulaPart). */
 export interface FormulaPart {
   id: string;
   formula_id: string;
   name: PartName;
-  mix_ratio: number;
+  sort_order: number;
+  categories: FormulaIngredientCategory[];
+}
+
+export interface FormulaIngredientCategory {
+  id: string;
+  part_id: string;
+  name: string;
   sort_order: number;
   ingredients: FormulaIngredient[];
 }
 
-/** Root domain entity representing a complete formula (mirrors Go Formula). */
+export interface FormulaIngredient {
+  id: string;
+  category_id: string;
+  material: string;
+  percentage: number;
+  weight: number;
+  batch_no: string;
+  unit: string;
+  sort_order: number;
+}
+
 export interface Formula {
   id: string;
   name: string;
@@ -66,7 +83,6 @@ export interface Formula {
   updated_at: string;
 }
 
-/** Matrix view aggregating multiple formulas (mirrors formula matrix endpoint). */
 export interface FormulaMatrix {
   formulas: Formula[];
 }

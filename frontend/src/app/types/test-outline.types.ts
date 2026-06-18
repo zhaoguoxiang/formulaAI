@@ -29,6 +29,7 @@ export interface TestOutline {
   id: string;
   name: string;
   version: number;
+  version_note: string;
   status: OutlineStatus;
   items: TestItem[];
   created_at: string;
@@ -37,3 +38,12 @@ export interface TestOutline {
 
 /** Lifecycle status of a test outline. */
 export type OutlineStatus = 'draft' | 'active' | 'archived';
+
+/** Summary of a single version returned by GET .../versions. */
+export interface VersionSummary {
+  id: string;
+  version: number;
+  version_note: string;
+  status: OutlineStatus;
+  created_at: string;
+}

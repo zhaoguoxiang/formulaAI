@@ -1,8 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideCopilotKit } from '@copilotkitnext/angular';
 import { By } from '@angular/platform-browser';
 
 import { ChatPanelComponent } from './chat-panel.component';
@@ -14,13 +11,6 @@ describe('ChatPanelComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ChatPanelComponent, NoopAnimationsModule],
-      providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        provideCopilotKit({
-          runtimeUrl: '/api/copilotkit',
-        }),
-      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ChatPanelComponent);
@@ -89,12 +79,6 @@ describe('ChatPanelComponent', () => {
     expect(input.nativeElement.placeholder).toContain('询问');
   });
 
-  it('should show the connection status badge', () => {
-    const badge = fixture.debugElement.query(By.css('.connection-badge'));
-    expect(badge).toBeTruthy();
-    expect(badge.nativeElement.textContent).toBeTruthy();
-  });
-
   it('should add user message and clear input on send', () => {
     component.inputText = '测试消息';
     component.sendMessage();
@@ -103,34 +87,6 @@ describe('ChatPanelComponent', () => {
     expect(component.messages()[0].role).toBe('user');
     expect(component.messages()[0].content).toBe('测试消息');
     expect(component.inputText).toBe('');
-  });
-
-  it('should display user messages in the template', () => {
-    component.inputText = 'Hello';
-    component.sendMessage();
-    fixture.detectChanges();
-
-    const userBubbles = fixture.debugElement.queryAll(By.css('.user-bubble'));
-    expect(userBubbles.length).toBeGreaterThanOrEqual(1);
-
-    const bubbleText = userBubbles[0].query(By.css('.bubble-text'));
-    expect(bubbleText.nativeElement.textContent).toContain('Hello');
-  });
-
-  it('should show progress bar when isRunning is true', () => {
-    component['isRunning'].set(true);
-    fixture.detectChanges();
-
-    const progressBar = fixture.debugElement.query(By.css('mat-progress-bar'));
-    expect(progressBar).toBeTruthy();
-  });
-
-  it('should show typing indicator when isRunning is true', () => {
-    component['isRunning'].set(true);
-    fixture.detectChanges();
-
-    const typingIndicator = fixture.debugElement.query(By.css('.typing-indicator'));
-    expect(typingIndicator).toBeTruthy();
   });
 
   it('should not send empty messages', () => {

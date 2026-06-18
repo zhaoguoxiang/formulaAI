@@ -1,33 +1,41 @@
 <mat-toolbar color="primary">
   <span class="app-title">FormulAI</span>
+  <span class="toolbar-spacer"></span>
+  <button mat-icon-button
+          class="dark-toggle-btn"
+          (click)="toggleDarkMode()"
+          [matTooltip]="isDark() ? '切换到浅色模式' : '切换到深色模式'"
+          [attr.aria-label]="isDark() ? '切换到浅色模式' : '切换到深色模式'">
+    <mat-icon>{{ isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
+  </button>
+  <button mat-icon-button class="sidebar-toggle-btn"
+          (click)="toggleSidebar()"
+          [matTooltip]="sidebarCollapsed() ? '展开 AI 助手' : '收起 AI 助手'"
+          [attr.aria-label]="sidebarCollapsed() ? '展开 AI 助手' : '收起 AI 助手'">
+    <mat-icon>{{ sidebarCollapsed() ? 'smart_toy' : 'close' }}</mat-icon>
+  </button>
 </mat-toolbar>
 
 <div class="app-container">
-  <div class="app-main">
+  <div class="app-main" [class.sidebar-collapsed]="sidebarCollapsed()">
     <mat-card>
       <mat-card-content>
         <mat-tab-group>
           <mat-tab label="测试大纲">
             <app-test-outline />
           </mat-tab>
-          <mat-tab label="配方展示">
+          <mat-tab label="配方管理">
             <app-formula-matrix />
           </mat-tab>
           <mat-tab label="配方分析">
             <app-formula-analysis />
-          </mat-tab>
-          <mat-tab label="新增">
-            <app-formula-editor
-              (saved)="onFormulaSaved($event)"
-              (cancelled)="onEditorCancelled()"
-            />
           </mat-tab>
         </mat-tab-group>
       </mat-card-content>
     </mat-card>
   </div>
 
-  <div class="app-sidebar">
+  <div class="app-sidebar" [class.collapsed]="sidebarCollapsed()">
     <app-chat-panel />
   </div>
 </div>

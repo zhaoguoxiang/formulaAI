@@ -1,15 +1,16 @@
-import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { Component, signal, computed, ChangeDetectionStrategy, effect, Renderer2, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { MatToolbar } from '@angular/material/toolbar';
 import { MatTabGroup, MatTab } from '@angular/material/tabs';
 import { MatCard, MatCardContent } from '@angular/material/card';
+import { MatIconButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { FormulaAnalysisComponent } from './components/formula-analysis/formula-analysis.component';
 import { FormulaMatrixComponent } from './components/formula-matrix/formula-matrix.component';
-import { FormulaEditorComponent } from './components/formula-editor/formula-editor.component';
 import { TestOutlineComponent } from './components/test-outline/test-outline.component';
 import { ChatPanelComponent } from './components/chat-panel/chat-panel.component';
-import { Formula } from './types/formula.types';
 
 @Component({
   selector: 'app-root',
@@ -20,9 +21,11 @@ import { Formula } from './types/formula.types';
     MatTab,
     MatCard,
     MatCardContent,
+    MatIconButton,
+    MatIcon,
+    MatTooltipModule,
     FormulaAnalysisComponent,
     FormulaMatrixComponent,
-    FormulaEditorComponent,
     TestOutlineComponent,
     ChatPanelComponent,
   ],
@@ -31,19 +34,35 @@ import { Formula } from './types/formula.types';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {
-  title = 'FormulAI';
+  private readonly renderer = inject(Renderer2);
 
-  @ViewChild(MatTabGroup) tabGroup?: MatTabGroup;
+  readonly sidebarCollapsed = signal(true);
+  readonly isDark = signal(false);
 
-  onFormulaSaved(_formula: Formula): void {
-    if (this.tabGroup) {
-      this.tabGroup.selectedIndex = 0;
+  constructor() {
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark') {
+      this.isDark.set(true);
+    } else if (!stored) {
+      this.isDark.set(window.matchMedia('(prefers-color-scheme: dark)').matches);
     }
+    effect(() => {
+      const dark = this.isDark();
+      if (dark) {
+        this.renderer.addClass(document.documentElement, 'dark-theme');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        this.renderer.removeClass(document.documentElement, 'dark-theme');
+        localStorage.setItem('theme', 'light');
+      }
+    });
   }
 
-  onEditorCancelled(): void {
-    if (this.tabGroup) {
-      this.tabGroup.selectedIndex = 0;
-    }
+  toggleDarkMode(): void {
+    this.isDark.update(v => !v);
+  }
+
+  toggleSidebar(): void {
+    this.sidebarCollapsed.update((v) => !v);
   }
 }

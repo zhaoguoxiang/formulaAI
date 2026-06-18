@@ -1,0 +1,10 @@
+.dialog-hint {
+  margin: 0 0 var(--app-spacing-md, 16px);
+  font-size: var(--mat-sys-body-medium-size, 0.875rem);
+  color: var(--mat-sys-on-surface-variant, #49454F);
+}
+
+.note-field {
+  width: 100%;
+  min-width: 360px;
+}

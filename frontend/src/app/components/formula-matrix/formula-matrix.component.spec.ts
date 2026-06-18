@@ -62,7 +62,7 @@ describe('FormulaMatrixComponent', () => {
 
     it('should start in loading state', () => {
       createComponent();
-      expect(component.loading).toBe(false);
+      expect(component.loading()).toBe(false);
     });
   });
 
@@ -81,8 +81,8 @@ describe('FormulaMatrixComponent', () => {
       vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(of(makeMatrix([])));
       fixture.detectChanges();
 
-      expect(component.loading).toBeFalsy();
-      expect(component.error).toBeNull();
+      expect(component.loading()).toBe(false);
+      expect(component.error()).toBeNull();
     });
 
     it('should show empty state when no formulas exist', () => {
@@ -115,8 +115,8 @@ describe('FormulaMatrixComponent', () => {
       vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(throwError(() => new Error('Server Error')));
       fixture.detectChanges();
 
-      expect(component.error).toBeTruthy();
-      expect(component.loading).toBeFalsy();
+      expect(component.error()).toBeTruthy();
+      expect(component.loading()).toBe(false);
 
       const errorEl = fixture.debugElement.query(By.css('.state-error'));
       expect(errorEl).toBeTruthy();
@@ -128,7 +128,7 @@ describe('FormulaMatrixComponent', () => {
       retryBtn.triggerEventHandler('click', null);
       fixture.detectChanges();
 
-      expect(component.error).toBeNull();
+      expect(component.error()).toBeNull();
     });
   });
 
@@ -241,6 +241,14 @@ describe('FormulaMatrixComponent', () => {
 
       const toggles = fixture.debugElement.queryAll(By.css('mat-button-toggle'));
       expect(toggles.length).toBe(3);
+    });
+
+    it('should have an add formula button', () => {
+      vi.spyOn(apiService, 'getFormulaMatrix').mockReturnValue(of(makeMatrix([makeFormula()])));
+      fixture.detectChanges();
+
+      const addBtn = fixture.debugElement.query(By.css('.add-formula-btn'));
+      expect(addBtn).toBeTruthy();
     });
   });
 

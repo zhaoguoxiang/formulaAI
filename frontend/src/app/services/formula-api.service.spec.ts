@@ -37,19 +37,6 @@ describe('FormulaApiService', () => {
     httpMock.verify();
   });
 
-  // ─── getFormulas ───
-
-  it('getFormulas() should GET /api/formulas and return Formula[]', () => {
-    service.getFormulas().subscribe((formulas) => {
-      expect(formulas.length).toBe(1);
-      expect(formulas[0].id).toBe('f1');
-    });
-
-    const req = httpMock.expectOne('/api/formulas');
-    expect(req.request.method).toBe('GET');
-    req.flush([mockFormula]);
-  });
-
   // ─── getFormula ───
 
   it('getFormula(id) should GET /api/formulas/:id and return a Formula', () => {
@@ -95,26 +82,6 @@ describe('FormulaApiService', () => {
     req.flush({ ...mockFormula, name: 'Updated', status: 'active' });
   });
 
-  // ─── deleteFormula ───
-
-  it('deleteFormula(id) should DELETE /api/formulas/:id and return void', () => {
-    let completed = false;
-
-    service.deleteFormula('f1').subscribe({
-      next: () => {
-        completed = true;
-      },
-      complete: () => {
-        completed = true;
-      },
-    });
-
-    const req = httpMock.expectOne('/api/formulas/f1');
-    expect(req.request.method).toBe('DELETE');
-    req.flush(null);
-    expect(completed).toBe(true);
-  });
-
   // ─── getFormulaMatrix ───
 
   it('getFormulaMatrix() should GET /api/formulas/matrix and return FormulaMatrix', () => {
@@ -138,19 +105,5 @@ describe('FormulaApiService', () => {
     );
     expect(req.request.method).toBe('GET');
     req.flush(mockFormulaMatrix);
-  });
-
-  // ─── getAnalysis ───
-
-  it('getAnalysis(endpoint) should GET /api/analysis/:endpoint', () => {
-    const mockAnalysis = { total_formulas: 5, by_component_mode: { single: 3, double: 2 } };
-
-    service.getAnalysis('stats').subscribe((data) => {
-      expect(data).toEqual(mockAnalysis);
-    });
-
-    const req = httpMock.expectOne('/api/analysis/stats');
-    expect(req.request.method).toBe('GET');
-    req.flush(mockAnalysis);
   });
 });

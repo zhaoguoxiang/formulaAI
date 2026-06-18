@@ -9,13 +9,14 @@ import (
 // TestOutline is the root entity representing a test outline with nested items and indicators.
 // Version numbers auto-increment on each publish. Status tracks the lifecycle.
 type TestOutline struct {
-	ID        uuid.UUID     `json:"id"         db:"id"`
-	Name      string        `json:"name"       db:"name"`
-	Version   int           `json:"version"    db:"version"`
-	Status    string        `json:"status"     db:"status"`
-	Items     []TestItem    `json:"items"`
-	CreatedAt time.Time     `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time     `json:"updated_at" db:"updated_at"`
+	ID          uuid.UUID  `json:"id"          db:"id"`
+	Name        string     `json:"name"        db:"name"`
+	Version     int        `json:"version"     db:"version"`
+	VersionNote string     `json:"version_note" db:"version_note"`
+	Status      string     `json:"status"      db:"status"`
+	Items       []TestItem `json:"items"`
+	CreatedAt   time.Time  `json:"created_at"  db:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"  db:"updated_at"`
 }
 
 const (

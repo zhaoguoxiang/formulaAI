@@ -37,9 +37,9 @@ func (r *TestOutlineRepo) Create(ctx context.Context, db *sql.DB, o *models.Test
 	o.Status = models.OutlineStatusActive
 
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO test_outlines (id, name, version, status, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		o.ID, o.Name, o.Version, o.Status, o.CreatedAt, o.UpdatedAt,
+		`INSERT INTO test_outlines (id, name, version, version_note, status, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		o.ID, o.Name, o.Version, o.VersionNote, o.Status, o.CreatedAt, o.UpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("insert test outline: %w", err)
@@ -95,9 +95,9 @@ func (r *TestOutlineRepo) SaveVersion(ctx context.Context, db *sql.DB, o *models
 	o.Status = models.OutlineStatusActive
 
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO test_outlines (id, name, version, status, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		o.ID, o.Name, o.Version, o.Status, o.CreatedAt, o.UpdatedAt,
+		`INSERT INTO test_outlines (id, name, version, version_note, status, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		o.ID, o.Name, o.Version, o.VersionNote, o.Status, o.CreatedAt, o.UpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("insert new version: %w", err)
@@ -154,9 +154,9 @@ func (r *TestOutlineRepo) Archive(ctx context.Context, db *sql.DB, id uuid.UUID)
 func (r *TestOutlineRepo) GetByID(ctx context.Context, db *sql.DB, id uuid.UUID) (*models.TestOutline, error) {
 	o := &models.TestOutline{}
 	err := db.QueryRowContext(ctx,
-		`SELECT id, name, version, status, created_at, updated_at
+		`SELECT id, name, version, version_note, status, created_at, updated_at
 		 FROM test_outlines WHERE id = $1`, id,
-	).Scan(&o.ID, &o.Name, &o.Version, &o.Status, &o.CreatedAt, &o.UpdatedAt)
+	).Scan(&o.ID, &o.Name, &o.Version, &o.VersionNote, &o.Status, &o.CreatedAt, &o.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("test outline %s: %w", id, sql.ErrNoRows)
 	}
@@ -179,7 +179,7 @@ func (r *TestOutlineRepo) GetByID(ctx context.Context, db *sql.DB, id uuid.UUID)
 
 func (r *TestOutlineRepo) List(ctx context.Context, db *sql.DB) ([]*models.TestOutline, error) {
 	rows, err := db.QueryContext(ctx,
-		`SELECT id, name, version, status, created_at, updated_at
+		`SELECT id, name, version, version_note, status, created_at, updated_at
 		 FROM test_outlines WHERE status != $1 ORDER BY created_at DESC`,
 		models.OutlineStatusArchived,
 	)
@@ -191,7 +191,7 @@ func (r *TestOutlineRepo) List(ctx context.Context, db *sql.DB) ([]*models.TestO
 	var outlines []*models.TestOutline
 	for rows.Next() {
 		o := &models.TestOutline{}
-		if err := rows.Scan(&o.ID, &o.Name, &o.Version, &o.Status, &o.CreatedAt, &o.UpdatedAt); err != nil {
+		if err := rows.Scan(&o.ID, &o.Name, &o.Version, &o.VersionNote, &o.Status, &o.CreatedAt, &o.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan test outline: %w", err)
 		}
 
@@ -220,7 +220,7 @@ func (r *TestOutlineRepo) List(ctx context.Context, db *sql.DB) ([]*models.TestO
 
 func (r *TestOutlineRepo) ListVersions(ctx context.Context, db *sql.DB, name string) ([]*models.TestOutline, error) {
 	rows, err := db.QueryContext(ctx,
-		`SELECT id, name, version, status, created_at, updated_at
+		`SELECT id, name, version, version_note, status, created_at, updated_at
 		 FROM test_outlines WHERE name = $1 ORDER BY version DESC`, name,
 	)
 	if err != nil {
@@ -231,7 +231,7 @@ func (r *TestOutlineRepo) ListVersions(ctx context.Context, db *sql.DB, name str
 	var outlines []*models.TestOutline
 	for rows.Next() {
 		o := &models.TestOutline{}
-		if err := rows.Scan(&o.ID, &o.Name, &o.Version, &o.Status, &o.CreatedAt, &o.UpdatedAt); err != nil {
+		if err := rows.Scan(&o.ID, &o.Name, &o.Version, &o.VersionNote, &o.Status, &o.CreatedAt, &o.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan version: %w", err)
 		}
 		outlines = append(outlines, o)

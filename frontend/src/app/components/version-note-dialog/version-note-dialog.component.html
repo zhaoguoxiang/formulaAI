@@ -1,0 +1,12 @@
+<h2 mat-dialog-title>保存新版本</h2>
+<mat-dialog-content>
+  <p class="dialog-hint">请填写本次修改的说明，方便后续追溯。</p>
+  <mat-form-field appearance="outline" class="note-field">
+    <mat-label>版本备注</mat-label>
+    <textarea matInput [(ngModel)]="note" rows="4" placeholder="例如：修改了某项指标的检测方法、调整了检测范围..."></textarea>
+  </mat-form-field>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">取消</button>
+  <button mat-raised-button color="primary" (click)="confirm()">保存</button>
+</mat-dialog-actions>

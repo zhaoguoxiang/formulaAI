@@ -20,47 +20,81 @@
       </mat-button-toggle>
     </mat-button-toggle-group>
 
-    <span class="toolbar-count" *ngIf="!loading && !error">
+    <button mat-flat-button color="primary" class="add-formula-btn" (click)="openNewFormulaDialog()">
+      <mat-icon>add</mat-icon>
+      新增配方
+    </button>
+
+    <span class="toolbar-count" *ngIf="!loading() && !error()">
       共 <strong>{{ dataSource.data.length }}</strong> 条配方
     </span>
   </div>
 
-  <!-- ═══ Loading State ═══ -->
-  <div class="state-container" *ngIf="loading">
-    <mat-spinner diameter="40" color="primary"></mat-spinner>
-    <p class="state-text">正在加载配方数据…</p>
+  <!-- ═══ Search Bar ═══ -->
+  <div class="search-bar" *ngIf="!loading() && !error() && dataSource.data.length > 0">
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-label>搜索配方</mat-label>
+      <input matInput
+             [(ngModel)]="searchText"
+             (ngModelChange)="onSearchChange($event)"
+             placeholder="按名称、编码、模式或状态搜索..." />
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
   </div>
 
+  <!-- ═══ Skeleton Loading ═══ -->
+  @if (loading()) {
+    <div class="skeleton-card">
+      @for (_ of [1,2,3,4,5,6,7]; track _) {
+        <div class="skeleton-table-row">
+          <div class="skeleton-cell"></div>
+          <div class="skeleton-cell"></div>
+          <div class="skeleton-cell"></div>
+          <div class="skeleton-cell"></div>
+          <div class="skeleton-cell"></div>
+          <div class="skeleton-cell"></div>
+          <div class="skeleton-cell"></div>
+          <div class="skeleton-cell"></div>
+        </div>
+      }
+    </div>
+  }
+
   <!-- ═══ Error State ═══ -->
-  <div class="state-container state-error" *ngIf="error && !loading">
+  <div class="state-container state-error" *ngIf="error() && !loading()">
     <div class="state-icon-wrapper error-icon-wrapper">
       <mat-icon class="state-icon">error_outline</mat-icon>
     </div>
-    <p class="state-text error-text">{{ error }}</p>
-    <button mat-stroked-button color="warn" (click)="loadMatrix()">
+    <p class="state-text error-text">{{ error() }}</p>
+    <button mat-stroked-button (click)="loadMatrix()">
       <mat-icon>refresh</mat-icon>
       重试
     </button>
   </div>
 
   <!-- ═══ Empty State ═══ -->
-  <div class="state-container state-empty" *ngIf="!loading && !error && dataSource.data.length === 0">
+  <div class="state-container state-empty" *ngIf="!loading() && !error() && dataSource.data.length === 0">
     <div class="state-icon-wrapper empty-icon-wrapper">
       <mat-icon class="state-icon">inventory_2</mat-icon>
     </div>
     <p class="state-text">暂无配方数据</p>
     <p class="state-hint">创建配方后将在此处以交叉表形式展示</p>
+    <button mat-stroked-button color="primary" (click)="openNewFormulaDialog()">
+      <mat-icon>add</mat-icon>
+      创建第一个配方
+    </button>
   </div>
 
   <!-- ═══ Data Table ═══ -->
   <mat-card
     class="table-card"
-    *ngIf="!loading && !error && dataSource.data.length > 0">
+    *ngIf="!loading() && !error() && dataSource.data.length > 0">
 
     <table
       mat-table
       [dataSource]="dataSource"
       multiTemplateDataRows
+      matSort
       class="matrix-table"
       aria-label="配方矩阵表格">
 
@@ -75,7 +109,7 @@
             [attr.aria-label]="isExpanded(element) ? '折叠' + element.name : '展开' + element.name"
             [matTooltip]="isExpanded(element) ? '折叠详情' : '展开详情'">
             <mat-icon class="expand-icon">
-              {{ isExpanded(element) ? 'expand_less' : 'expand_more' }}
+              {{ isExpanded(element) ? 'expand_more' : 'chevron_right' }}
             </mat-icon>
           </button>
         </td>
@@ -83,7 +117,7 @@
 
       <!-- ── Column: Code ── -->
       <ng-container matColumnDef="code">
-        <th mat-header-cell *matHeaderCellDef class="col-code">编码</th>
+        <th mat-header-cell *matHeaderCellDef class="col-code" mat-sort-header>编码</th>
         <td mat-cell *matCellDef="let element" class="col-code">
           <code class="code-mono">{{ element.code }}</code>
         </td>
@@ -91,7 +125,7 @@
 
       <!-- ── Column: Name ── -->
       <ng-container matColumnDef="name">
-        <th mat-header-cell *matHeaderCellDef class="col-name">配方名称</th>
+        <th mat-header-cell *matHeaderCellDef class="col-name" mat-sort-header>配方名称</th>
         <td mat-cell *matCellDef="let element" class="col-name">
           <span class="formula-name">{{ element.name }}</span>
         </td>
@@ -99,7 +133,7 @@
 
       <!-- ── Column: Component Mode ── -->
       <ng-container matColumnDef="component_mode">
-        <th mat-header-cell *matHeaderCellDef class="col-mode">组分模式</th>
+        <th mat-header-cell *matHeaderCellDef class="col-mode" mat-sort-header>组分模式</th>
         <td mat-cell *matCellDef="let element" class="col-mode">
           <span class="mode-chip" [ngClass]="getModeClass(element.component_mode)">
             {{ getModeLabel(element.component_mode) }}
@@ -109,7 +143,7 @@
 
       <!-- ── Column: Parts Count ── -->
       <ng-container matColumnDef="parts_count">
-        <th mat-header-cell *matHeaderCellDef class="col-count">组分数</th>
+        <th mat-header-cell *matHeaderCellDef class="col-count" mat-sort-header>组分数</th>
         <td mat-cell *matCellDef="let element" class="col-count">
           <span class="count-badge">{{ element.parts?.length ?? 0 }}</span>
         </td>
@@ -117,7 +151,7 @@
 
       <!-- ── Column: Steps Count ── -->
       <ng-container matColumnDef="steps_count">
-        <th mat-header-cell *matHeaderCellDef class="col-count">步骤数</th>
+        <th mat-header-cell *matHeaderCellDef class="col-count" mat-sort-header>步骤数</th>
         <td mat-cell *matCellDef="let element" class="col-count">
           <span class="count-badge count-steps">{{ element.steps?.length ?? 0 }}</span>
         </td>
@@ -125,7 +159,7 @@
 
       <!-- ── Column: Status ── -->
       <ng-container matColumnDef="status">
-        <th mat-header-cell *matHeaderCellDef class="col-status">状态</th>
+        <th mat-header-cell *matHeaderCellDef class="col-status" mat-sort-header>状态</th>
         <td mat-cell *matCellDef="let element" class="col-status">
           <span
             class="status-chip"
@@ -135,6 +169,22 @@
             <span class="status-dot-inner"></span>
             {{ getStatusLabel(element.status) }}
           </span>
+        </td>
+      </ng-container>
+
+      <!-- ── Column: Actions ── -->
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef class="col-actions">操作</th>
+        <td mat-cell *matCellDef="let element" class="col-actions">
+          <button type="button" mat-icon-button (click)="openEditDialog(element, $event)" matTooltip="编辑配方" class="action-btn">
+            <mat-icon>edit</mat-icon>
+          </button>
+          <button type="button" mat-icon-button (click)="cloneFormula(element, $event)" matTooltip="克隆配方" class="action-btn">
+            <mat-icon>content_copy</mat-icon>
+          </button>
+          <button type="button" mat-icon-button color="warn" (click)="deleteFormula(element, $event)" matTooltip="删除配方" class="action-btn">
+            <mat-icon>delete</mat-icon>
+          </button>
         </td>
       </ng-container>
 
@@ -149,62 +199,65 @@
             class="detail-wrapper"
             [@detailExpand]="isExpanded(element) ? 'expanded' : 'collapsed'">
             <div class="detail-inner" *ngIf="isExpanded(element)">
-              <!-- Part sections -->
-              <div
-                class="part-section"
-                *ngFor="let part of element.parts; last as isLast">
-
-                <!-- Part header -->
-                <div class="part-header">
-                  <span class="part-badge" [ngClass]="getPartNameClass(part.name)">
-                    {{ getPartNameLabel(part.name) }}
-                  </span>
-                  <span class="part-mix-ratio">
-                    配比 <strong>{{ part.mix_ratio }}%</strong>
-                  </span>
-                </div>
-
-                <!-- Ingredients sub-table -->
-                <div class="ingredient-list" *ngIf="part.ingredients?.length; else noIngredients">
-                  <div class="ingredient-header">
-                    <span class="ing-col-material">配料名称</span>
-                    <span class="ing-col-percent">占比 (%)</span>
-                    <span class="ing-col-weight">重量</span>
-                  </div>
-                  <div
-                    class="ingredient-row"
-                    *ngFor="let ing of part.ingredients; let i = index">
-                    <span class="ing-col-index">{{ i + 1 }}</span>
-                    <span class="ing-col-material">{{ ing.material }}</span>
-                    <span class="ing-col-percent">
-                      <span class="pct-bar" [style.width.%]="ing.percentage"></span>
-                      <span class="pct-value">{{ ing.percentage }}%</span>
+              <!-- ═══ Part + Ingredient sections ═══ -->
+              @for (part of element.parts; track part.id) {
+                <div class="part-section">
+                  <div class="part-header">
+                    <span class="part-label">
+                      <span class="part-badge" [ngClass]="getPartNameClass(part.name)">
+                        {{ getPartNameLabel(part.name) }}
+                      </span>
+                      <span class="part-ingredient-count">
+                        {{ totalIngredientCount([part]) }} 种原料
+                      </span>
                     </span>
-                    <span class="ing-col-weight">{{ ing.weight > 0 ? (ing.weight | number:'1.0-2') : '—' }}</span>
                   </div>
-                </div>
-                <ng-template #noIngredients>
-                  <p class="no-data-hint">该组分暂无配料</p>
-                </ng-template>
 
-                <mat-divider *ngIf="!isLast" class="part-divider"></mat-divider>
-              </div>
+                  <!-- Ingredient table per part -->
+                  @if (flatIngredients(part).length > 0) {
+                    <div class="ingredient-list">
+                      <div class="ingredient-header">
+                        <span class="ing-h-col-index">#</span>
+                        <span class="ing-h-col-material">原料名称</span>
+                        <span class="ing-h-col-pct">占比</span>
+                        <span class="ing-h-col-weight">质量</span>
+                      </div>
+                      @for (ing of flatIngredients(part); track ing.id) {
+                        <div class="ingredient-row">
+                          <span class="ing-col-index">{{ $index + 1 }}</span>
+                          <span class="ing-col-material">{{ ing.material }}</span>
+                          <span class="ing-col-percent">
+                            <span class="pct-bar" [style.width]="(ing.percentage || 0) + 'px'"></span>
+                            <span class="pct-value">{{ ing.percentage != null ? (ing.percentage | number:'1.1-1') + '%' : '-' }}</span>
+                          </span>
+                          <span class="ing-col-weight">{{ ing.weight != null ? ing.weight + ' ' + (ing.unit || 'g') : '-' }}</span>
+                        </div>
+                      }
+                    </div>
+                  }
+
+                  <mat-divider *ngIf="!$last" class="part-divider"></mat-divider>
+                </div>
+              }
 
               <!-- Steps summary section -->
-              <div class="steps-summary" *ngIf="element.steps?.length">
-                <div class="steps-header">
-                  <mat-icon class="steps-icon">account_tree</mat-icon>
-                  <span>工艺步骤 ({{ element.steps.length }})</span>
+              @if (element.steps?.length) {
+                <div class="steps-summary">
+                  <div class="steps-header">
+                    <mat-icon class="steps-icon">account_tree</mat-icon>
+                    <span>工艺步骤 ({{ element.steps.length }})</span>
+                  </div>
+                  <div class="steps-list">
+                    @for (step of element.steps; track step.id) {
+                      <span
+                        class="step-chip"
+                        [matTooltip]="step.description || ''">
+                        {{ step.step_no }}. {{ step.name }}
+                      </span>
+                    }
+                  </div>
                 </div>
-                <div class="steps-list">
-                  <span
-                    class="step-chip"
-                    *ngFor="let step of element.steps"
-                    [matTooltip]="'温度: ' + step.temperature + ' | 时长: ' + step.duration">
-                    {{ step.step_no }}. {{ step.name }}
-                  </span>
-                </div>
-              </div>
+              }
             </div>
           </div>
         </td>
@@ -226,6 +279,14 @@
         [class.detail-expanded]="isExpanded(row)">
       </tr>
     </table>
+
+    <!-- No results after search -->
+    @if (dataSource.filter && dataSource.filteredData.length === 0 && dataSource.data.length > 0) {
+      <div class="no-results">
+        <mat-icon>search_off</mat-icon>
+        <span>没有匹配 "{{ searchText }}" 的配方</span>
+      </div>
+    }
   </mat-card>
 
 </div>

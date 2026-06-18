@@ -3,7 +3,6 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { provideCopilotKit } from '@copilotkitnext/angular';
 import { App } from './app';
 
 describe('App', () => {
@@ -15,9 +14,6 @@ describe('App', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        provideCopilotKit({
-          runtimeUrl: '/api/copilotkit',
-        }),
       ],
     }).compileComponents();
   });
@@ -50,7 +46,7 @@ describe('App', () => {
     expect(sidebar).toBeTruthy();
   });
 
-  it('should render tab group with 4 tabs', () => {
+  it('should render tab group with 3 tabs', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
@@ -59,7 +55,7 @@ describe('App', () => {
     expect(tabGroup).toBeTruthy();
 
     const tabElements = compiled.querySelectorAll('[role="tab"]');
-    expect(tabElements.length).toBe(4);
+    expect(tabElements.length).toBe(3);
   });
 
   it('should render the chat panel component', () => {

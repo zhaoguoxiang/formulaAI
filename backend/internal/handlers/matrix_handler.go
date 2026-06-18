@@ -37,9 +37,8 @@ type matrixFormulaResponse struct {
 }
 
 type matrixPartResponse struct {
-	Name        string                    `json:"name"`
-	MixRatio    float64                   `json:"mix_ratio"`
-	Ingredients []matrixIngredientResponse `json:"ingredients"`
+	Name      string `json:"name"`
+	SortOrder int    `json:"sort_order"`
 }
 
 type matrixIngredientResponse struct {
@@ -48,19 +47,26 @@ type matrixIngredientResponse struct {
 	Weight     float64 `json:"weight"`
 }
 
-type matrixStepResponse struct {
-	StepNo        int                          `json:"step_no"`
-	Name          string                       `json:"name"`
-	Temperature   string                       `json:"temperature"`
-	Duration      string                       `json:"duration"`
-	DosingActions []matrixDosingActionResponse `json:"dosing_actions"`
+type matrixMaterialResponse struct {
+	Category   string                    `json:"category"`
+	Materials  []matrixIngredientResponse `json:"materials"`
 }
 
-type matrixDosingActionResponse struct {
-	IngredientMaterial string  `json:"ingredient_material"`
-	DosingOrder        int     `json:"dosing_order"`
-	UseRatio           float64 `json:"use_ratio"`
-	DosingMethod       string  `json:"dosing_method"`
+type matrixStepResponse struct {
+	StepNo         int                        `json:"step_no"`
+	Name           string                     `json:"name"`
+	Description    string                     `json:"description"`
+	InstrumentName string                     `json:"instrument_name"`
+	Temperature    string                     `json:"temperature"`
+	Duration       string                     `json:"duration"`
+	Materials      []matrixMaterialResponse   `json:"materials"`
+	Parameters     []matrixStepParamResponse  `json:"parameters"`
+}
+
+type matrixStepParamResponse struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+	Unit  string `json:"unit"`
 }
 
 // HandleMatrix returns all formulas with a flat restructured view for the
@@ -94,60 +100,52 @@ func (h *MatrixHandler) HandleMatrix(c *gin.Context) {
 // dosing_actions live under steps (resolved to ingredient_material) instead of
 // under ingredients.
 func restructureFormula(f *models.Formula) matrixFormulaResponse {
-	// Build ingredient ID → material lookup
-	ingMaterial := make(map[string]string)
-	for _, p := range f.Parts {
-		for _, ing := range p.Ingredients {
-			ingMaterial[ing.ID.String()] = ing.Material
-		}
-	}
-
-	// Build parts (without dosing_actions on ingredients)
+	// Build parts (simplified)
 	parts := make([]matrixPartResponse, 0, len(f.Parts))
 	for _, p := range f.Parts {
-		ings := make([]matrixIngredientResponse, 0, len(p.Ingredients))
-		for _, ing := range p.Ingredients {
-			ings = append(ings, matrixIngredientResponse{
-				Material:   ing.Material,
-				Percentage: ing.Percentage,
-				Weight:     ing.Weight,
-			})
-		}
 		parts = append(parts, matrixPartResponse{
-			Name:        string(p.Name),
-			MixRatio:    p.MixRatio,
-			Ingredients: ings,
+			Name:      string(p.Name),
+			SortOrder: p.SortOrder,
 		})
 	}
 
-	// Build steps with dosing_actions resolved from all ingredients
+	// Build steps with materials and parameters
 	steps := make([]matrixStepResponse, 0, len(f.Steps))
 	for _, s := range f.Steps {
-		var das []matrixDosingActionResponse
-		for _, p := range f.Parts {
-			for _, ing := range p.Ingredients {
-				for _, da := range ing.DosingActions {
-					if da.StepID.String() == s.ID.String() {
-						das = append(das, matrixDosingActionResponse{
-							IngredientMaterial: ingMaterial[da.IngredientID.String()],
-							DosingOrder:        da.DosingOrder,
-							UseRatio:           da.UseRatio,
-							DosingMethod:       da.DosingMethod,
-						})
-					}
-				}
+		mats := make([]matrixMaterialResponse, 0, len(s.Categories))
+		for _, cat := range s.Categories {
+			ings := make([]matrixIngredientResponse, 0, len(cat.Materials))
+			for _, m := range cat.Materials {
+				ings = append(ings, matrixIngredientResponse{
+					Material:   m.Material,
+					Percentage: m.Percentage,
+					Weight:     m.Weight,
+				})
 			}
+			mats = append(mats, matrixMaterialResponse{
+				Category:  cat.Name,
+				Materials: ings,
+			})
 		}
-		// Ensure empty slice instead of null
-		if das == nil {
-			das = []matrixDosingActionResponse{}
+
+		params := make([]matrixStepParamResponse, 0, len(s.Parameters))
+		for _, p := range s.Parameters {
+			params = append(params, matrixStepParamResponse{
+				Name:  p.Name,
+				Value: p.Value,
+				Unit:  p.Unit,
+			})
 		}
+
 		steps = append(steps, matrixStepResponse{
-			StepNo:        s.StepNo,
-			Name:          s.Name,
-			Temperature:   s.Temperature,
-			Duration:      s.Duration,
-			DosingActions: das,
+			StepNo:         s.StepNo,
+			Name:           s.Name,
+			Description:    s.Description,
+			InstrumentName: s.InstrumentName,
+			Temperature:    s.Temperature,
+			Duration:       s.Duration,
+			Materials:      mats,
+			Parameters:     params,
 		})
 	}
 

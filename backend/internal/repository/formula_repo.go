@@ -12,25 +12,18 @@ import (
 	"formula-ai-system/backend/internal/models"
 )
 
-// ListOptions controls filtering and pagination for List queries.
 type ListOptions struct {
-	ComponentMode string // optional filter: "single", "double", "" for all
-	Limit         int    // max results, 0 means no limit
-	Offset        int    // pagination offset
+	ComponentMode string
+	Limit         int
+	Offset        int
 }
 
-// FormulaRepo provides CRUD operations for formulas with nested data.
-// All nested operations (parts, ingredients, steps, dosing actions) are
-// executed within PostgreSQL transactions for atomicity.
 type FormulaRepo struct{}
 
-// NewFormulaRepo creates a new FormulaRepo instance.
 func NewFormulaRepo() *FormulaRepo {
 	return &FormulaRepo{}
 }
 
-// Create inserts a formula and all its nested data in a single transaction.
-// UUIDs are generated for any entity that doesn't already have one.
 func (r *FormulaRepo) Create(ctx context.Context, db *sql.DB, f *models.Formula) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -38,7 +31,6 @@ func (r *FormulaRepo) Create(ctx context.Context, db *sql.DB, f *models.Formula)
 	}
 	defer tx.Rollback()
 
-	// Ensure formula has an ID
 	if f.ID == uuid.Nil {
 		f.ID = uuid.New()
 	}
@@ -56,27 +48,7 @@ func (r *FormulaRepo) Create(ctx context.Context, db *sql.DB, f *models.Formula)
 		return fmt.Errorf("insert formula: %w", err)
 	}
 
-	// 2. Insert steps (need step IDs for dosing actions)
-	stepIDs := make([]uuid.UUID, len(f.Steps))
-	for i := range f.Steps {
-		step := &f.Steps[i]
-		if step.ID == uuid.Nil {
-			step.ID = uuid.New()
-		}
-		step.FormulaID = f.ID
-
-		_, err = tx.ExecContext(ctx,
-			`INSERT INTO formula_steps (id, formula_id, part_id, step_no, name, temperature, duration)
-			 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-			step.ID, step.FormulaID, step.PartID, step.StepNo, step.Name, step.Temperature, step.Duration,
-		)
-		if err != nil {
-			return fmt.Errorf("insert step %d: %w", i, err)
-		}
-		stepIDs[i] = step.ID
-	}
-
-	// 3. Insert parts and ingredients (with dosing actions)
+	// 2. Insert parts (simplified - no mix_ratio or materials)
 	for pi := range f.Parts {
 		part := &f.Parts[pi]
 		if part.ID == uuid.Nil {
@@ -84,54 +56,83 @@ func (r *FormulaRepo) Create(ctx context.Context, db *sql.DB, f *models.Formula)
 		}
 		part.FormulaID = f.ID
 
-		dbPartName := partNameToDB(part.Name)
 		_, err = tx.ExecContext(ctx,
-			`INSERT INTO formula_parts (id, formula_id, name, mix_ratio, sort_order)
-			 VALUES ($1, $2, $3, $4, $5)`,
-			part.ID, part.FormulaID, dbPartName, part.MixRatio, part.SortOrder,
+			`INSERT INTO formula_parts (id, formula_id, name, sort_order)
+			 VALUES ($1, $2, $3, $4)`,
+			part.ID, part.FormulaID, partNameToDB(part.Name), part.SortOrder,
 		)
 		if err != nil {
 			return fmt.Errorf("insert part %d: %w", pi, err)
 		}
+	}
 
-		for ii := range part.Ingredients {
-			ing := &part.Ingredients[ii]
-			if ing.ID == uuid.Nil {
-				ing.ID = uuid.New()
-			}
-			ing.PartID = part.ID
+	// 3. Insert steps with material categories, materials, and parameters
+	for si := range f.Steps {
+		step := &f.Steps[si]
+		if step.ID == uuid.Nil {
+			step.ID = uuid.New()
+		}
+		step.FormulaID = f.ID
 
-			var weight interface{}
-			if ing.Weight != 0 {
-				weight = ing.Weight
+		_, err = tx.ExecContext(ctx,
+			`INSERT INTO formula_steps (id, formula_id, part_id, step_no, name, description, instrument_name, temperature, duration)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+			step.ID, step.FormulaID, step.PartID, step.StepNo, step.Name, step.Description, step.InstrumentName, step.Temperature, step.Duration,
+		)
+		if err != nil {
+			return fmt.Errorf("insert step %d: %w", si, err)
+		}
+
+		// Insert material categories and materials (for 投料 steps)
+		for ci := range step.Categories {
+			cat := &step.Categories[ci]
+			if cat.ID == uuid.Nil {
+				cat.ID = uuid.New()
 			}
+			cat.StepID = step.ID
 
 			_, err = tx.ExecContext(ctx,
-				`INSERT INTO formula_ingredients (id, part_id, sort_order, material, percentage, weight)
-				 VALUES ($1, $2, $3, $4, $5, $6)`,
-				ing.ID, ing.PartID, ing.SortOrder, ing.Material, ing.Percentage, weight,
+				`INSERT INTO formula_step_material_categories (id, step_id, name, sort_order)
+				 VALUES ($1, $2, $3, $4)`,
+				cat.ID, cat.StepID, cat.Name, cat.SortOrder,
 			)
 			if err != nil {
-				return fmt.Errorf("insert ingredient %d in part %d: %w", ii, pi, err)
+				return fmt.Errorf("insert material category %d in step %d: %w", ci, si, err)
 			}
 
-			// Insert dosing actions for this ingredient
-			for di := range ing.DosingActions {
-				da := &ing.DosingActions[di]
-				if da.ID == uuid.Nil {
-					da.ID = uuid.New()
+			for mi := range cat.Materials {
+				mat := &cat.Materials[mi]
+				if mat.ID == uuid.Nil {
+					mat.ID = uuid.New()
 				}
-				// ingredient_id is always the parent ingredient
-				da.IngredientID = ing.ID
+				mat.CategoryID = cat.ID
 
 				_, err = tx.ExecContext(ctx,
-					`INSERT INTO formula_dosing_actions (id, step_id, ingredient_id, dosing_order, use_ratio, dosing_method)
-					 VALUES ($1, $2, $3, $4, $5, $6)`,
-					da.ID, da.StepID, da.IngredientID, da.DosingOrder, da.UseRatio, da.DosingMethod,
+					`INSERT INTO formula_step_materials (id, category_id, material, percentage, weight, batch_no, unit, sort_order)
+					 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+					mat.ID, mat.CategoryID, mat.Material, mat.Percentage, mat.Weight, mat.BatchNo, mat.Unit, mat.SortOrder,
 				)
 				if err != nil {
-					return fmt.Errorf("insert dosing action %d for ingredient %d: %w", di, ii, err)
+					return fmt.Errorf("insert material %d in category %d: %w", mi, ci, err)
 				}
+			}
+		}
+
+		// Insert step parameters
+		for pi := range step.Parameters {
+			param := &step.Parameters[pi]
+			if param.ID == uuid.Nil {
+				param.ID = uuid.New()
+			}
+			param.StepID = step.ID
+
+			_, err = tx.ExecContext(ctx,
+				`INSERT INTO formula_step_parameters (id, step_id, name, value, unit, sort_order)
+				 VALUES ($1, $2, $3, $4, $5, $6)`,
+				param.ID, param.StepID, param.Name, param.Value, param.Unit, param.SortOrder,
+			)
+			if err != nil {
+				return fmt.Errorf("insert step parameter %d for step %d: %w", pi, si, err)
 			}
 		}
 	}
@@ -139,13 +140,10 @@ func (r *FormulaRepo) Create(ctx context.Context, db *sql.DB, f *models.Formula)
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit tx: %w", err)
 	}
-
 	return nil
 }
 
-// GetByID retrieves a formula with all nested data (parts, ingredients, steps, dosing actions).
 func (r *FormulaRepo) GetByID(ctx context.Context, db *sql.DB, id uuid.UUID) (*models.Formula, error) {
-	// 1. Query formula
 	f := &models.Formula{}
 	var componentMode, status string
 	err := db.QueryRowContext(ctx,
@@ -161,14 +159,12 @@ func (r *FormulaRepo) GetByID(ctx context.Context, db *sql.DB, id uuid.UUID) (*m
 	f.ComponentMode = models.ComponentMode(componentMode)
 	f.Status = models.Status(status)
 
-	// 2. Query parts
 	parts, err := r.queryParts(ctx, db, f.ID)
 	if err != nil {
 		return nil, fmt.Errorf("query parts: %w", err)
 	}
 	f.Parts = parts
 
-	// 3. Query steps
 	steps, err := r.querySteps(ctx, db, f.ID)
 	if err != nil {
 		return nil, fmt.Errorf("query steps: %w", err)
@@ -178,11 +174,9 @@ func (r *FormulaRepo) GetByID(ctx context.Context, db *sql.DB, id uuid.UUID) (*m
 	return f, nil
 }
 
-// List retrieves formulas with their nested data, supporting optional mode filter and pagination.
 func (r *FormulaRepo) List(ctx context.Context, db *sql.DB, opts ListOptions) ([]*models.Formula, error) {
 	args := []interface{}{}
 	where := ""
-
 	if opts.ComponentMode != "" {
 		where = " WHERE component_mode = $1"
 		args = append(args, opts.ComponentMode)
@@ -224,12 +218,10 @@ func (r *FormulaRepo) List(ctx context.Context, db *sql.DB, opts ListOptions) ([
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("rows iteration: %w", err)
 	}
-
 	if len(formulas) == 0 {
 		return []*models.Formula{}, nil
 	}
 
-	// Batch query all nested data
 	partsByFormula, err := r.queryPartsBulk(ctx, db, formulaIDs)
 	if err != nil {
 		return nil, fmt.Errorf("query parts: %w", err)
@@ -239,76 +231,20 @@ func (r *FormulaRepo) List(ctx context.Context, db *sql.DB, opts ListOptions) ([
 		return nil, fmt.Errorf("query steps: %w", err)
 	}
 
-	// Collect part IDs for batch ingredient query
-	var partIDs []uuid.UUID
-	for _, parts := range partsByFormula {
-		for _, p := range parts {
-			partIDs = append(partIDs, p.ID)
-		}
-	}
-
-	var ingredientsByPart map[uuid.UUID][]models.FormulaIngredient
-	var dosingByIngredient map[uuid.UUID][]models.FormulaDosingAction
-	if len(partIDs) > 0 {
-		ingredientsByPart, err = r.queryIngredientsBulk(ctx, db, partIDs)
-		if err != nil {
-			return nil, fmt.Errorf("query ingredients: %w", err)
-		}
-
-		var ingredientIDs []uuid.UUID
-		for _, ingredients := range ingredientsByPart {
-			for _, ing := range ingredients {
-				ingredientIDs = append(ingredientIDs, ing.ID)
-			}
-		}
-		if len(ingredientIDs) > 0 {
-			dosingByIngredient, err = r.queryDosingActionsBulk(ctx, db, ingredientIDs)
-			if err != nil {
-				return nil, fmt.Errorf("query dosing actions: %w", err)
-			}
-		}
-	}
-
-	if ingredientsByPart == nil {
-		ingredientsByPart = make(map[uuid.UUID][]models.FormulaIngredient)
-	}
-	if dosingByIngredient == nil {
-		dosingByIngredient = make(map[uuid.UUID][]models.FormulaDosingAction)
-	}
-
-	// Assemble formulas
 	for _, f := range formulas {
-		parts := partsByFormula[f.ID]
-		if parts == nil {
-			parts = []models.FormulaPart{}
+		f.Parts = partsByFormula[f.ID]
+		if f.Parts == nil {
+			f.Parts = []models.FormulaPart{}
 		}
-		for i := range parts {
-			ingredients := ingredientsByPart[parts[i].ID]
-			if ingredients == nil {
-				ingredients = []models.FormulaIngredient{}
-			}
-			for j := range ingredients {
-				ingredients[j].DosingActions = dosingByIngredient[ingredients[j].ID]
-				if ingredients[j].DosingActions == nil {
-					ingredients[j].DosingActions = []models.FormulaDosingAction{}
-				}
-			}
-			parts[i].Ingredients = ingredients
+		f.Steps = stepsByFormula[f.ID]
+		if f.Steps == nil {
+			f.Steps = []models.FormulaStep{}
 		}
-		f.Parts = parts
-
-		steps := stepsByFormula[f.ID]
-		if steps == nil {
-			steps = []models.FormulaStep{}
-		}
-		f.Steps = steps
 	}
 
 	return formulas, nil
 }
 
-// Update replaces a formula's nested data atomically.
-// Strategy: UPDATE formula row, DELETE all nested rows, re-INSERT new nested data.
 func (r *FormulaRepo) Update(ctx context.Context, db *sql.DB, f *models.Formula) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -318,10 +254,8 @@ func (r *FormulaRepo) Update(ctx context.Context, db *sql.DB, f *models.Formula)
 
 	f.UpdatedAt = time.Now()
 
-	// 1. Update formula row
 	result, err := tx.ExecContext(ctx,
-		`UPDATE formulas SET name=$1, code=$2, component_mode=$3, status=$4, updated_at=$5
-		 WHERE id=$6`,
+		`UPDATE formulas SET name=$1, code=$2, component_mode=$3, status=$4, updated_at=$5 WHERE id=$6`,
 		f.Name, f.Code, string(f.ComponentMode), string(f.Status), f.UpdatedAt, f.ID,
 	)
 	if err != nil {
@@ -332,91 +266,94 @@ func (r *FormulaRepo) Update(ctx context.Context, db *sql.DB, f *models.Formula)
 		return fmt.Errorf("formula %s not found", f.ID)
 	}
 
-	// 2. Delete all nested rows (steps first, then parts - CASCADE handles deeper nesting)
+	// Delete all nested data
 	_, err = tx.ExecContext(ctx, `DELETE FROM formula_steps WHERE formula_id = $1`, f.ID)
 	if err != nil {
 		return fmt.Errorf("delete nested steps: %w", err)
 	}
-
 	_, err = tx.ExecContext(ctx, `DELETE FROM formula_parts WHERE formula_id = $1`, f.ID)
 	if err != nil {
 		return fmt.Errorf("delete nested parts: %w", err)
 	}
 
-	// 3. Re-insert all nested data (same logic as Create minus formula INSERT)
-	stepIDs := make([]uuid.UUID, len(f.Steps))
-	for i := range f.Steps {
-		step := &f.Steps[i]
-		if step.ID == uuid.Nil {
-			step.ID = uuid.New()
-		}
-		step.FormulaID = f.ID
-
-		_, err = tx.ExecContext(ctx,
-			`INSERT INTO formula_steps (id, formula_id, part_id, step_no, name, temperature, duration)
-			 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-			step.ID, step.FormulaID, step.PartID, step.StepNo, step.Name, step.Temperature, step.Duration,
-		)
-		if err != nil {
-			return fmt.Errorf("re-insert step %d: %w", i, err)
-		}
-		stepIDs[i] = step.ID
-	}
-	_ = stepIDs // available for validation if needed
-
+	// Re-insert parts
 	for pi := range f.Parts {
 		part := &f.Parts[pi]
 		if part.ID == uuid.Nil {
 			part.ID = uuid.New()
 		}
 		part.FormulaID = f.ID
-
-		dbPartName := partNameToDB(part.Name)
 		_, err = tx.ExecContext(ctx,
-			`INSERT INTO formula_parts (id, formula_id, name, mix_ratio, sort_order)
-			 VALUES ($1, $2, $3, $4, $5)`,
-			part.ID, part.FormulaID, dbPartName, part.MixRatio, part.SortOrder,
+			`INSERT INTO formula_parts (id, formula_id, name, sort_order)
+			 VALUES ($1, $2, $3, $4)`,
+			part.ID, part.FormulaID, partNameToDB(part.Name), part.SortOrder,
 		)
 		if err != nil {
 			return fmt.Errorf("re-insert part %d: %w", pi, err)
 		}
+	}
 
-		for ii := range part.Ingredients {
-			ing := &part.Ingredients[ii]
-			if ing.ID == uuid.Nil {
-				ing.ID = uuid.New()
+	// Re-insert steps (with materials, categories, parameters)
+	for si := range f.Steps {
+		step := &f.Steps[si]
+		if step.ID == uuid.Nil {
+			step.ID = uuid.New()
+		}
+		step.FormulaID = f.ID
+		_, err = tx.ExecContext(ctx,
+			`INSERT INTO formula_steps (id, formula_id, part_id, step_no, name, description, instrument_name, temperature, duration)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+			step.ID, step.FormulaID, step.PartID, step.StepNo, step.Name, step.Description, step.InstrumentName, step.Temperature, step.Duration,
+		)
+		if err != nil {
+			return fmt.Errorf("re-insert step %d: %w", si, err)
+		}
+
+		for ci := range step.Categories {
+			cat := &step.Categories[ci]
+			if cat.ID == uuid.Nil {
+				cat.ID = uuid.New()
 			}
-			ing.PartID = part.ID
-
-			var weight interface{}
-			if ing.Weight != 0 {
-				weight = ing.Weight
-			}
-
+			cat.StepID = step.ID
 			_, err = tx.ExecContext(ctx,
-				`INSERT INTO formula_ingredients (id, part_id, sort_order, material, percentage, weight)
-				 VALUES ($1, $2, $3, $4, $5, $6)`,
-				ing.ID, ing.PartID, ing.SortOrder, ing.Material, ing.Percentage, weight,
+				`INSERT INTO formula_step_material_categories (id, step_id, name, sort_order)
+				 VALUES ($1, $2, $3, $4)`,
+				cat.ID, cat.StepID, cat.Name, cat.SortOrder,
 			)
 			if err != nil {
-				return fmt.Errorf("re-insert ingredient %d in part %d: %w", ii, pi, err)
+				return fmt.Errorf("re-insert material category %d: %w", ci, err)
 			}
 
-			for di := range ing.DosingActions {
-				da := &ing.DosingActions[di]
-				if da.ID == uuid.Nil {
-					da.ID = uuid.New()
+			for mi := range cat.Materials {
+				mat := &cat.Materials[mi]
+				if mat.ID == uuid.Nil {
+					mat.ID = uuid.New()
 				}
-				da.IngredientID = ing.ID
-
+				mat.CategoryID = cat.ID
 				_, err = tx.ExecContext(ctx,
-					`INSERT INTO formula_dosing_actions (id, step_id, ingredient_id, dosing_order, use_ratio, dosing_method)
-					 VALUES ($1, $2, $3, $4, $5, $6)`,
-					da.ID, da.StepID, da.IngredientID, da.DosingOrder, da.UseRatio, da.DosingMethod,
+					`INSERT INTO formula_step_materials (id, category_id, material, percentage, weight, batch_no, unit, sort_order)
+					 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+					mat.ID, mat.CategoryID, mat.Material, mat.Percentage, mat.Weight, mat.BatchNo, mat.Unit, mat.SortOrder,
 				)
 				if err != nil {
-					return fmt.Errorf("re-insert dosing action %d for ingredient %d: %w", di, ii, err)
+					return fmt.Errorf("re-insert material %d: %w", mi, err)
 				}
+			}
+		}
+
+		for pi := range step.Parameters {
+			param := &step.Parameters[pi]
+			if param.ID == uuid.Nil {
+				param.ID = uuid.New()
+			}
+			param.StepID = step.ID
+			_, err = tx.ExecContext(ctx,
+				`INSERT INTO formula_step_parameters (id, step_id, name, value, unit, sort_order)
+				 VALUES ($1, $2, $3, $4, $5, $6)`,
+				param.ID, param.StepID, param.Name, param.Value, param.Unit, param.SortOrder,
+			)
+			if err != nil {
+				return fmt.Errorf("re-insert step parameter %d: %w", pi, err)
 			}
 		}
 	}
@@ -424,32 +361,28 @@ func (r *FormulaRepo) Update(ctx context.Context, db *sql.DB, f *models.Formula)
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit tx: %w", err)
 	}
-
 	return nil
 }
 
-// Delete removes a formula. CASCADE constraints handle deletion of all nested data.
 func (r *FormulaRepo) Delete(ctx context.Context, db *sql.DB, id uuid.UUID) error {
 	result, err := db.ExecContext(ctx, `DELETE FROM formulas WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete formula: %w", err)
 	}
-
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		return fmt.Errorf("formula %s not found", id)
 	}
-
 	return nil
 }
 
-// queryParts loads all parts for a formula with their nested ingredients and dosing actions.
+// ─── Query helpers ───
+
 func (r *FormulaRepo) queryParts(ctx context.Context, db interface {
 	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
 }, formulaID uuid.UUID) ([]models.FormulaPart, error) {
 	rows, err := db.QueryContext(ctx,
-		`SELECT id, formula_id, name, mix_ratio, sort_order
-		 FROM formula_parts WHERE formula_id = $1 ORDER BY sort_order`, formulaID,
+		`SELECT id, formula_id, name, sort_order FROM formula_parts WHERE formula_id = $1 ORDER BY sort_order`, formulaID,
 	)
 	if err != nil {
 		return nil, err
@@ -460,116 +393,48 @@ func (r *FormulaRepo) queryParts(ctx context.Context, db interface {
 	for rows.Next() {
 		var p models.FormulaPart
 		var dbName string
-		if err := rows.Scan(&p.ID, &p.FormulaID, &dbName, &p.MixRatio, &p.SortOrder); err != nil {
+		if err := rows.Scan(&p.ID, &p.FormulaID, &dbName, &p.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan part: %w", err)
 		}
 		p.Name = partNameFromDB(dbName)
-
-		ingredients, err := r.queryIngredients(ctx, db, p.ID)
-		if err != nil {
-			return nil, fmt.Errorf("query ingredients for part %s: %w", p.ID, err)
-		}
-		p.Ingredients = ingredients
-
 		parts = append(parts, p)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
 	if parts == nil {
 		parts = []models.FormulaPart{}
 	}
-
-	return parts, nil
+	return parts, rows.Err()
 }
 
-// queryIngredients loads all ingredients for a part with their nested dosing actions.
-func (r *FormulaRepo) queryIngredients(ctx context.Context, db interface {
-	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
-}, partID uuid.UUID) ([]models.FormulaIngredient, error) {
+func (r *FormulaRepo) queryPartsBulk(ctx context.Context, db *sql.DB, formulaIDs []uuid.UUID) (map[uuid.UUID][]models.FormulaPart, error) {
+	result := make(map[uuid.UUID][]models.FormulaPart)
+	if len(formulaIDs) == 0 {
+		return result, nil
+	}
 	rows, err := db.QueryContext(ctx,
-		`SELECT id, part_id, sort_order, material, percentage, weight
-		 FROM formula_ingredients WHERE part_id = $1 ORDER BY sort_order`, partID,
+		`SELECT id, formula_id, name, sort_order FROM formula_parts WHERE formula_id = ANY($1) ORDER BY sort_order`,
+		pq.Array(formulaIDs),
 	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
-	var ingredients []models.FormulaIngredient
 	for rows.Next() {
-		var ing models.FormulaIngredient
-		var weight sql.NullFloat64
-		if err := rows.Scan(&ing.ID, &ing.PartID, &ing.SortOrder, &ing.Material, &ing.Percentage, &weight); err != nil {
-			return nil, fmt.Errorf("scan ingredient: %w", err)
+		var p models.FormulaPart
+		var dbName string
+		if err := rows.Scan(&p.ID, &p.FormulaID, &dbName, &p.SortOrder); err != nil {
+			return nil, fmt.Errorf("scan part: %w", err)
 		}
-		if weight.Valid {
-			ing.Weight = weight.Float64
-		}
-
-		dosingActions, err := r.queryDosingActions(ctx, db, ing.ID)
-		if err != nil {
-			return nil, fmt.Errorf("query dosing actions for ingredient %s: %w", ing.ID, err)
-		}
-		ing.DosingActions = dosingActions
-
-		ingredients = append(ingredients, ing)
+		p.Name = partNameFromDB(dbName)
+		result[p.FormulaID] = append(result[p.FormulaID], p)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	if ingredients == nil {
-		ingredients = []models.FormulaIngredient{}
-	}
-
-	return ingredients, nil
+	return result, rows.Err()
 }
 
-// queryDosingActions loads all dosing actions for an ingredient.
-func (r *FormulaRepo) queryDosingActions(ctx context.Context, db interface {
-	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
-}, ingredientID uuid.UUID) ([]models.FormulaDosingAction, error) {
-	rows, err := db.QueryContext(ctx,
-		`SELECT id, step_id, ingredient_id, dosing_order, use_ratio, dosing_method
-		 FROM formula_dosing_actions WHERE ingredient_id = $1 ORDER BY dosing_order`, ingredientID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var actions []models.FormulaDosingAction
-	for rows.Next() {
-		var da models.FormulaDosingAction
-		var dosingMethod sql.NullString
-		if err := rows.Scan(&da.ID, &da.StepID, &da.IngredientID, &da.DosingOrder, &da.UseRatio, &dosingMethod); err != nil {
-			return nil, fmt.Errorf("scan dosing action: %w", err)
-		}
-		if dosingMethod.Valid {
-			da.DosingMethod = dosingMethod.String
-		}
-
-		actions = append(actions, da)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	if actions == nil {
-		actions = []models.FormulaDosingAction{}
-	}
-
-	return actions, nil
-}
-
-// querySteps loads all steps for a formula.
 func (r *FormulaRepo) querySteps(ctx context.Context, db interface {
 	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
 }, formulaID uuid.UUID) ([]models.FormulaStep, error) {
 	rows, err := db.QueryContext(ctx,
-		`SELECT id, formula_id, part_id::text, step_no, name, temperature, duration
+		`SELECT id, formula_id, part_id::text, step_no, name, description, instrument_name, temperature, duration
 		 FROM formula_steps WHERE formula_id = $1 ORDER BY step_no`, formulaID,
 	)
 	if err != nil {
@@ -579,146 +444,33 @@ func (r *FormulaRepo) querySteps(ctx context.Context, db interface {
 
 	var steps []models.FormulaStep
 	for rows.Next() {
-		var s models.FormulaStep
-		var partIDStr sql.NullString
-		var temperature, duration sql.NullString
-		if err := rows.Scan(&s.ID, &s.FormulaID, &partIDStr, &s.StepNo, &s.Name, &temperature, &duration); err != nil {
-			return nil, fmt.Errorf("scan step: %w", err)
+		s, err := scanStep(rows)
+		if err != nil {
+			return nil, err
 		}
-		if partIDStr.Valid {
-			if uid, err := uuid.Parse(partIDStr.String); err == nil {
-				s.PartID = &uid
-			}
+		s.Parameters, err = r.queryStepParameters(ctx, db, s.ID)
+		if err != nil {
+			return nil, err
 		}
-		if temperature.Valid {
-			s.Temperature = temperature.String
+		s.Categories, err = r.queryMaterialCategories(ctx, db, s.ID)
+		if err != nil {
+			return nil, err
 		}
-		if duration.Valid {
-			s.Duration = duration.String
-		}
-
-		steps = append(steps, s)
+		steps = append(steps, *s)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
 	if steps == nil {
 		steps = []models.FormulaStep{}
 	}
-
-	return steps, nil
+	return steps, rows.Err()
 }
 
-// queryPartsBulk loads all parts for multiple formula IDs in a single query.
-func (r *FormulaRepo) queryPartsBulk(ctx context.Context, db *sql.DB, formulaIDs []uuid.UUID) (map[uuid.UUID][]models.FormulaPart, error) {
-	result := make(map[uuid.UUID][]models.FormulaPart)
-	if len(formulaIDs) == 0 {
-		return result, nil
-	}
-
-	rows, err := db.QueryContext(ctx,
-		`SELECT id, formula_id, name, mix_ratio, sort_order
-		 FROM formula_parts WHERE formula_id = ANY($1) ORDER BY sort_order`,
-		pq.Array(formulaIDs),
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var p models.FormulaPart
-		var dbName string
-		if err := rows.Scan(&p.ID, &p.FormulaID, &dbName, &p.MixRatio, &p.SortOrder); err != nil {
-			return nil, fmt.Errorf("scan part: %w", err)
-		}
-		p.Name = partNameFromDB(dbName)
-		result[p.FormulaID] = append(result[p.FormulaID], p)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-// queryIngredientsBulk loads all ingredients for multiple part IDs in a single query.
-func (r *FormulaRepo) queryIngredientsBulk(ctx context.Context, db *sql.DB, partIDs []uuid.UUID) (map[uuid.UUID][]models.FormulaIngredient, error) {
-	result := make(map[uuid.UUID][]models.FormulaIngredient)
-	if len(partIDs) == 0 {
-		return result, nil
-	}
-
-	rows, err := db.QueryContext(ctx,
-		`SELECT id, part_id, sort_order, material, percentage, weight
-		 FROM formula_ingredients WHERE part_id = ANY($1) ORDER BY sort_order`,
-		pq.Array(partIDs),
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var ing models.FormulaIngredient
-		var weight sql.NullFloat64
-		if err := rows.Scan(&ing.ID, &ing.PartID, &ing.SortOrder, &ing.Material, &ing.Percentage, &weight); err != nil {
-			return nil, fmt.Errorf("scan ingredient: %w", err)
-		}
-		if weight.Valid {
-			ing.Weight = weight.Float64
-		}
-		result[ing.PartID] = append(result[ing.PartID], ing)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-// queryDosingActionsBulk loads all dosing actions for multiple ingredient IDs in a single query.
-func (r *FormulaRepo) queryDosingActionsBulk(ctx context.Context, db *sql.DB, ingredientIDs []uuid.UUID) (map[uuid.UUID][]models.FormulaDosingAction, error) {
-	result := make(map[uuid.UUID][]models.FormulaDosingAction)
-	if len(ingredientIDs) == 0 {
-		return result, nil
-	}
-
-	rows, err := db.QueryContext(ctx,
-		`SELECT id, step_id, ingredient_id, dosing_order, use_ratio, dosing_method
-		 FROM formula_dosing_actions WHERE ingredient_id = ANY($1) ORDER BY dosing_order`,
-		pq.Array(ingredientIDs),
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var da models.FormulaDosingAction
-		var dosingMethod sql.NullString
-		if err := rows.Scan(&da.ID, &da.StepID, &da.IngredientID, &da.DosingOrder, &da.UseRatio, &dosingMethod); err != nil {
-			return nil, fmt.Errorf("scan dosing action: %w", err)
-		}
-		if dosingMethod.Valid {
-			da.DosingMethod = dosingMethod.String
-		}
-		result[da.IngredientID] = append(result[da.IngredientID], da)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-// queryStepsBulk loads all steps for multiple formula IDs in a single query.
 func (r *FormulaRepo) queryStepsBulk(ctx context.Context, db *sql.DB, formulaIDs []uuid.UUID) (map[uuid.UUID][]models.FormulaStep, error) {
 	result := make(map[uuid.UUID][]models.FormulaStep)
 	if len(formulaIDs) == 0 {
 		return result, nil
 	}
-
 	rows, err := db.QueryContext(ctx,
-		`SELECT id, formula_id, part_id::text, step_no, name, temperature, duration
+		`SELECT id, formula_id, part_id::text, step_no, name, description, instrument_name, temperature, duration
 		 FROM formula_steps WHERE formula_id = ANY($1) ORDER BY step_no`,
 		pq.Array(formulaIDs),
 	)
@@ -727,26 +479,242 @@ func (r *FormulaRepo) queryStepsBulk(ctx context.Context, db *sql.DB, formulaIDs
 	}
 	defer rows.Close()
 
+	var stepIDs []uuid.UUID
 	for rows.Next() {
-		var s models.FormulaStep
-		var partIDStr sql.NullString
-		if err := rows.Scan(&s.ID, &s.FormulaID, &partIDStr, &s.StepNo, &s.Name, &s.Temperature, &s.Duration); err != nil {
-			return nil, fmt.Errorf("scan step: %w", err)
+		s, err := scanStep(rows)
+		if err != nil {
+			return nil, err
 		}
-		if partIDStr.Valid {
-			if uid, err := uuid.Parse(partIDStr.String); err == nil {
-				s.PartID = &uid
-			}
-		}
-		result[s.FormulaID] = append(result[s.FormulaID], s)
+		stepIDs = append(stepIDs, s.ID)
+		result[s.FormulaID] = append(result[s.FormulaID], *s)
 	}
-	if err := rows.Err(); err != nil {
+
+	if len(stepIDs) > 0 {
+		paramsByStep, _ := r.queryStepParametersBulk(ctx, db, stepIDs)
+		materialsByStep, _ := r.queryMaterialCategoriesBulk(ctx, db, stepIDs)
+		for fid, stps := range result {
+			for i := range stps {
+				stps[i].Parameters = paramsByStep[stps[i].ID]
+				if stps[i].Parameters == nil {
+					stps[i].Parameters = []models.FormulaStepParameter{}
+				}
+				stps[i].Categories = materialsByStep[stps[i].ID]
+				if stps[i].Categories == nil {
+					stps[i].Categories = []models.FormulaStepMaterialCategory{}
+				}
+			}
+			result[fid] = stps
+		}
+	}
+	return result, rows.Err()
+}
+
+func (r *FormulaRepo) queryStepParameters(ctx context.Context, db interface {
+	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+}, stepID uuid.UUID) ([]models.FormulaStepParameter, error) {
+	rows, err := db.QueryContext(ctx,
+		`SELECT id, step_id, name, value, unit, sort_order
+		 FROM formula_step_parameters WHERE step_id = $1 ORDER BY sort_order`, stepID,
+	)
+	if err != nil {
 		return nil, err
+	}
+	defer rows.Close()
+	params := scanStepParameters(rows)
+	if params == nil {
+		params = []models.FormulaStepParameter{}
+	}
+	return params, nil
+}
+
+func (r *FormulaRepo) queryStepParametersBulk(ctx context.Context, db *sql.DB, stepIDs []uuid.UUID) (map[uuid.UUID][]models.FormulaStepParameter, error) {
+	result := make(map[uuid.UUID][]models.FormulaStepParameter)
+	if len(stepIDs) == 0 {
+		return result, nil
+	}
+	rows, err := db.QueryContext(ctx,
+		`SELECT id, step_id, name, value, unit, sort_order
+		 FROM formula_step_parameters WHERE step_id = ANY($1) ORDER BY sort_order`,
+		pq.Array(stepIDs),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for _, p := range scanStepParameters(rows) {
+		result[p.StepID] = append(result[p.StepID], p)
 	}
 	return result, nil
 }
 
-// partNameToDB converts a model PartName to the database representation.
+func (r *FormulaRepo) queryMaterialCategories(ctx context.Context, db interface {
+	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+}, stepID uuid.UUID) ([]models.FormulaStepMaterialCategory, error) {
+	rows, err := db.QueryContext(ctx,
+		`SELECT id, step_id, name, sort_order
+		 FROM formula_step_material_categories WHERE step_id = $1 ORDER BY sort_order`, stepID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var cats []models.FormulaStepMaterialCategory
+	for rows.Next() {
+		var c models.FormulaStepMaterialCategory
+		if err := rows.Scan(&c.ID, &c.StepID, &c.Name, &c.SortOrder); err != nil {
+			return nil, err
+		}
+		mats, err := r.queryMaterials(ctx, db, c.ID)
+		if err != nil {
+			return nil, err
+		}
+		c.Materials = mats
+		cats = append(cats, c)
+	}
+	if cats == nil {
+		cats = []models.FormulaStepMaterialCategory{}
+	}
+	return cats, rows.Err()
+}
+
+func (r *FormulaRepo) queryMaterialCategoriesBulk(ctx context.Context, db *sql.DB, stepIDs []uuid.UUID) (map[uuid.UUID][]models.FormulaStepMaterialCategory, error) {
+	result := make(map[uuid.UUID][]models.FormulaStepMaterialCategory)
+	if len(stepIDs) == 0 {
+		return result, nil
+	}
+	rows, err := db.QueryContext(ctx,
+		`SELECT id, step_id, name, sort_order
+		 FROM formula_step_material_categories WHERE step_id = ANY($1) ORDER BY sort_order`,
+		pq.Array(stepIDs),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var catIDs []uuid.UUID
+	type catEntry struct {
+		cat    models.FormulaStepMaterialCategory
+		stepID uuid.UUID
+	}
+	var entries []catEntry
+	for rows.Next() {
+		var c models.FormulaStepMaterialCategory
+		if err := rows.Scan(&c.ID, &c.StepID, &c.Name, &c.SortOrder); err != nil {
+			return nil, err
+		}
+		catIDs = append(catIDs, c.ID)
+		entries = append(entries, catEntry{cat: c, stepID: c.StepID})
+	}
+
+	if len(catIDs) > 0 {
+		matsByCat, _ := r.queryMaterialsBulk(ctx, db, catIDs)
+		for i, e := range entries {
+			entries[i].cat.Materials = matsByCat[e.cat.ID]
+			if entries[i].cat.Materials == nil {
+				entries[i].cat.Materials = []models.FormulaStepMaterial{}
+			}
+		}
+	}
+
+	for _, e := range entries {
+		result[e.stepID] = append(result[e.stepID], e.cat)
+	}
+	return result, rows.Err()
+}
+
+func (r *FormulaRepo) queryMaterials(ctx context.Context, db interface {
+	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+}, categoryID uuid.UUID) ([]models.FormulaStepMaterial, error) {
+	rows, err := db.QueryContext(ctx,
+		`SELECT id, category_id, material, percentage, weight, batch_no, unit, sort_order
+		 FROM formula_step_materials WHERE category_id = $1 ORDER BY sort_order`, categoryID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	mats := scanMaterials(rows)
+	if mats == nil {
+		mats = []models.FormulaStepMaterial{}
+	}
+	return mats, nil
+}
+
+func (r *FormulaRepo) queryMaterialsBulk(ctx context.Context, db *sql.DB, categoryIDs []uuid.UUID) (map[uuid.UUID][]models.FormulaStepMaterial, error) {
+	result := make(map[uuid.UUID][]models.FormulaStepMaterial)
+	if len(categoryIDs) == 0 {
+		return result, nil
+	}
+	rows, err := db.QueryContext(ctx,
+		`SELECT id, category_id, material, percentage, weight, batch_no, unit, sort_order
+		 FROM formula_step_materials WHERE category_id = ANY($1) ORDER BY sort_order`,
+		pq.Array(categoryIDs),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for _, m := range scanMaterials(rows) {
+		result[m.CategoryID] = append(result[m.CategoryID], m)
+	}
+	return result, nil
+}
+
+// ─── Scan helpers ───
+
+func scanStep(scanner interface {
+	Scan(dest ...interface{}) error
+}) (*models.FormulaStep, error) {
+	s := &models.FormulaStep{}
+	var partIDStr sql.NullString
+	var temperature, duration, instrumentName, description sql.NullString
+	if err := scanner.Scan(&s.ID, &s.FormulaID, &partIDStr, &s.StepNo, &s.Name, &description, &instrumentName, &temperature, &duration); err != nil {
+		return nil, fmt.Errorf("scan step: %w", err)
+	}
+	if partIDStr.Valid {
+		if uid, err := uuid.Parse(partIDStr.String); err == nil {
+			s.PartID = &uid
+		}
+	}
+	if instrumentName.Valid {
+		s.InstrumentName = instrumentName.String
+	}
+	if description.Valid {
+		s.Description = description.String
+	}
+	if temperature.Valid {
+		s.Temperature = temperature.String
+	}
+	if duration.Valid {
+		s.Duration = duration.String
+	}
+	return s, nil
+}
+
+func scanStepParameters(rows *sql.Rows) []models.FormulaStepParameter {
+	var params []models.FormulaStepParameter
+	for rows.Next() {
+		var p models.FormulaStepParameter
+		if err := rows.Scan(&p.ID, &p.StepID, &p.Name, &p.Value, &p.Unit, &p.SortOrder); err == nil {
+			params = append(params, p)
+		}
+	}
+	return params
+}
+
+func scanMaterials(rows *sql.Rows) []models.FormulaStepMaterial {
+	var mats []models.FormulaStepMaterial
+	for rows.Next() {
+		var m models.FormulaStepMaterial
+		if err := rows.Scan(&m.ID, &m.CategoryID, &m.Material, &m.Percentage, &m.Weight, &m.BatchNo, &m.Unit, &m.SortOrder); err == nil {
+			mats = append(mats, m)
+		}
+	}
+	return mats
+}
+
 func partNameToDB(name models.PartName) string {
 	switch name {
 	case models.PartA:
@@ -760,7 +728,6 @@ func partNameToDB(name models.PartName) string {
 	}
 }
 
-// partNameFromDB converts a database part name to the model PartName.
 func partNameFromDB(s string) models.PartName {
 	switch s {
 	case "A":
