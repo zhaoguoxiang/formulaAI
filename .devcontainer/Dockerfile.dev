@@ -18,12 +18,12 @@ RUN go install github.com/air-verse/air@latest && \
     go install golang.org/x/tools/cmd/goimports@latest && \
     go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
-# ── Python virtualenv with LangGraph deps ──
-RUN python3 -m venv /opt/langgraph-venv
-ENV PATH="/opt/langgraph-venv/bin:/root/go/bin:$PATH"
+# ── Python virtualenv with Agent deps ──
+RUN python3 -m venv /opt/agent-venv
+ENV PATH="/opt/agent-venv/bin:/root/go/bin:$PATH"
 
-COPY langgraph-service/pyproject.toml /tmp/langgraph/
-RUN /opt/langgraph-venv/bin/pip install --no-cache-dir /tmp/langgraph/
+COPY agent-service/pyproject.toml /tmp/agent/
+RUN /opt/agent-venv/bin/pip install --no-cache-dir /tmp/agent/
 
 # ── Pre-download Go modules ──
 COPY backend/go.mod backend/go.sum /tmp/backend/

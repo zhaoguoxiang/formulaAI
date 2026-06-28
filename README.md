@@ -71,7 +71,7 @@ docker compose ps
 NAME                 STATUS
 formula-postgres     Up (healthy)
 formula-backend      Up (healthy)
-formula-langgraph    Up (healthy)
+formula-agent         Up (healthy)
 formula-frontend     Up (healthy)
 ```
 
@@ -81,7 +81,7 @@ formula-frontend     Up (healthy)
 |------|------|
 | 前端页面 | http://localhost:8081 |
 | 后端 API | http://localhost:8080 |
-| LangGraph Agent | http://localhost:5050 |
+| AI Agent | http://localhost:5050 |
 
 ## 常用命令
 
@@ -146,7 +146,7 @@ DB_PORT=5432          # 默认
 │   ├── cmd/server/
 │   ├── migrations/               # 数据库迁移
 │   └── Dockerfile
-├── langgraph-service/   # AI LangGraph Agent 服务
+├── agent-service/       # AI Agent 服务（LangChain + LangGraph）
 │   └── Dockerfile
 ├── docker-compose.yml   # 容器编排
 └── .env.example         # 环境变量模板

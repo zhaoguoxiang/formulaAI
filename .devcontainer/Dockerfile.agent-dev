@@ -3,9 +3,9 @@ FROM python:3.12-alpine
 RUN apk add --no-cache curl && \
     addgroup -S appgroup && adduser -S appuser -G appgroup
 
-COPY langgraph-service/pyproject.toml /tmp/
+COPY agent-service/pyproject.toml /tmp/
 RUN pip install --no-cache-dir /tmp/
 
-WORKDIR /workspace/langgraph-service
+WORKDIR /workspace/agent-service
 USER appuser
 CMD ["uvicorn", "src.main:app", "--reload", "--host", "0.0.0.0", "--port", "5050"]

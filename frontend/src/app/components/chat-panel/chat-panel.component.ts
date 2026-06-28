@@ -277,7 +277,7 @@ export class ChatPanelComponent {
         ...msgs,
         {
           role: 'assistant',
-          content: '连接分析服务失败，请确认 LangGraph 服务已启动。',
+          content: '连接 AI 服务失败，请确认 Agent 服务已启动。',
           timestamp: Date.now(),
         },
       ]);

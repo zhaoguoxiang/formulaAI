@@ -1,6 +1,9 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+    image: formula-postgres:16
     container_name: formula-postgres
     environment:
       POSTGRES_USER: ${DB_USER:?err}
@@ -79,7 +82,7 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-      langgraph:
+      agent:
         condition: service_healthy
     networks:
       - formula-network
@@ -91,11 +94,11 @@ services:
         reservations:
           memory: 64M
 
-  langgraph:
+  agent:
     build:
-      context: ./langgraph-service
+      context: ./agent-service
       dockerfile: Dockerfile
-    container_name: formula-langgraph
+    container_name: formula-agent
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:?err}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}

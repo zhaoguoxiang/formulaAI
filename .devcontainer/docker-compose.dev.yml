@@ -11,7 +11,7 @@ services:
       - ..:/workspace:cached
       - go-mod-cache:/go/pkg/mod
       - node-modules-cache:/workspace/frontend/node_modules
-      - python-venv:/opt/langgraph-venv
+      - python-venv:/opt/agent-venv
       - vscode-extensions:/root/.vscode-server
     environment:
       - DB_HOST=postgres
@@ -55,15 +55,15 @@ services:
       CORS_ORIGINS: "*"
       MIGRATIONS_PATH: /workspace/backend/migrations
 
-  # ── Override langgraph: hot reload with uvicorn --reload ──
+  # ── Override agent: hot reload with uvicorn --reload ──
   # Only starts with: docker compose --profile full-dev up
-  langgraph:
+  agent:
     profiles:
       - full-dev
     build:
       context: ..
-      dockerfile: .devcontainer/Dockerfile.langgraph-dev
-    container_name: formula-langgraph-dev
+      dockerfile: .devcontainer/Dockerfile.agent-dev
+    container_name: formula-agent-dev
     volumes:
       - ..:/workspace:cached
     ports:
