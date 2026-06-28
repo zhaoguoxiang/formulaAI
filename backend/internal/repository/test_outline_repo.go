@@ -37,9 +37,9 @@ func (r *TestOutlineRepo) Create(ctx context.Context, db *sql.DB, o *models.Test
 	o.Status = models.OutlineStatusActive
 
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO test_outlines (id, name, version, version_note, status, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		o.ID, o.Name, o.Version, o.VersionNote, o.Status, o.CreatedAt, o.UpdatedAt,
+		`INSERT INTO test_outlines (id, project_id, name, version, version_note, status, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		o.ID, o.ProjectID, o.Name, o.Version, o.VersionNote, o.Status, o.CreatedAt, o.UpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("insert test outline: %w", err)
@@ -72,17 +72,17 @@ func (r *TestOutlineRepo) SaveVersion(ctx context.Context, db *sql.DB, o *models
 	// Find max version for this outline name (with lock to prevent concurrent version collisions)
 	var maxVersion int
 	err = tx.QueryRowContext(ctx,
-		`SELECT COALESCE(MAX(version), 0) FROM test_outlines WHERE name = $1 FOR UPDATE`,
-		o.Name,
+		`SELECT COALESCE(MAX(version), 0) FROM test_outlines WHERE name = $1 AND project_id = $2 FOR UPDATE`,
+		o.Name, o.ProjectID,
 	).Scan(&maxVersion)
 	if err != nil {
 		return fmt.Errorf("query max version: %w", err)
 	}
 
-	// Archive all existing versions with this name
+	// Archive all existing versions with this name in this project
 	_, err = tx.ExecContext(ctx,
-		`UPDATE test_outlines SET status = $1, updated_at = $2 WHERE name = $3`,
-		models.OutlineStatusArchived, time.Now(), o.Name,
+		`UPDATE test_outlines SET status = $1, updated_at = $2 WHERE name = $3 AND project_id = $4`,
+		models.OutlineStatusArchived, time.Now(), o.Name, o.ProjectID,
 	)
 	if err != nil {
 		return fmt.Errorf("archive old versions: %w", err)
@@ -95,9 +95,9 @@ func (r *TestOutlineRepo) SaveVersion(ctx context.Context, db *sql.DB, o *models
 	o.Status = models.OutlineStatusActive
 
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO test_outlines (id, name, version, version_note, status, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		o.ID, o.Name, o.Version, o.VersionNote, o.Status, o.CreatedAt, o.UpdatedAt,
+		`INSERT INTO test_outlines (id, project_id, name, version, version_note, status, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		o.ID, o.ProjectID, o.Name, o.Version, o.VersionNote, o.Status, o.CreatedAt, o.UpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("insert new version: %w", err)
@@ -129,12 +129,12 @@ func (r *TestOutlineRepo) SaveVersion(ctx context.Context, db *sql.DB, o *models
 // Archive — soft delete by setting status = 'archived'
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Archive sets all versions of an outline name to 'archived'.
-func (r *TestOutlineRepo) Archive(ctx context.Context, db *sql.DB, id uuid.UUID) error {
+// Archive sets all versions of an outline name to 'archived' within a project.
+func (r *TestOutlineRepo) Archive(ctx context.Context, db *sql.DB, id uuid.UUID, projectID uuid.UUID) error {
 	// Find the outline name first
 	var name string
 	err := db.QueryRowContext(ctx,
-		`SELECT name FROM test_outlines WHERE id = $1`, id,
+		`SELECT name FROM test_outlines WHERE id = $1 AND project_id = $2`, id, projectID,
 	).Scan(&name)
 	if err == sql.ErrNoRows {
 		return fmt.Errorf("test outline %s: %w", id, sql.ErrNoRows)
@@ -144,8 +144,8 @@ func (r *TestOutlineRepo) Archive(ctx context.Context, db *sql.DB, id uuid.UUID)
 	}
 
 	result, err := db.ExecContext(ctx,
-		`UPDATE test_outlines SET status = $1, updated_at = $2 WHERE name = $3`,
-		models.OutlineStatusArchived, time.Now(), name,
+		`UPDATE test_outlines SET status = $1, updated_at = $2 WHERE name = $3 AND project_id = $4`,
+		models.OutlineStatusArchived, time.Now(), name, projectID,
 	)
 	if err != nil {
 		return fmt.Errorf("archive test outlines: %w", err)
@@ -166,12 +166,12 @@ func (r *TestOutlineRepo) Archive(ctx context.Context, db *sql.DB, id uuid.UUID)
 // GetByID
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (r *TestOutlineRepo) GetByID(ctx context.Context, db *sql.DB, id uuid.UUID) (*models.TestOutline, error) {
+func (r *TestOutlineRepo) GetByID(ctx context.Context, db *sql.DB, id uuid.UUID, projectID uuid.UUID) (*models.TestOutline, error) {
 	o := &models.TestOutline{}
 	err := db.QueryRowContext(ctx,
-		`SELECT id, name, version, version_note, status, created_at, updated_at
-		 FROM test_outlines WHERE id = $1`, id,
-	).Scan(&o.ID, &o.Name, &o.Version, &o.VersionNote, &o.Status, &o.CreatedAt, &o.UpdatedAt)
+		`SELECT id, project_id, name, version, version_note, status, created_at, updated_at
+		 FROM test_outlines WHERE id = $1 AND project_id = $2`, id, projectID,
+	).Scan(&o.ID, &o.ProjectID, &o.Name, &o.Version, &o.VersionNote, &o.Status, &o.CreatedAt, &o.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("test outline %s: %w", id, sql.ErrNoRows)
 	}
@@ -192,11 +192,11 @@ func (r *TestOutlineRepo) GetByID(ctx context.Context, db *sql.DB, id uuid.UUID)
 // List — only returns the latest active version per outline name
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (r *TestOutlineRepo) List(ctx context.Context, db *sql.DB) ([]*models.TestOutline, error) {
+func (r *TestOutlineRepo) List(ctx context.Context, db *sql.DB, projectID uuid.UUID) ([]*models.TestOutline, error) {
 	rows, err := db.QueryContext(ctx,
-		`SELECT id, name, version, version_note, status, created_at, updated_at
-		 FROM test_outlines WHERE status != $1 ORDER BY created_at DESC`,
-		models.OutlineStatusArchived,
+		`SELECT id, project_id, name, version, version_note, status, created_at, updated_at
+		 FROM test_outlines WHERE status != $1 AND project_id = $2 ORDER BY created_at DESC`,
+		models.OutlineStatusArchived, projectID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("query test outlines: %w", err)
@@ -206,7 +206,7 @@ func (r *TestOutlineRepo) List(ctx context.Context, db *sql.DB) ([]*models.TestO
 	var outlines []*models.TestOutline
 	for rows.Next() {
 		o := &models.TestOutline{}
-		if err := rows.Scan(&o.ID, &o.Name, &o.Version, &o.VersionNote, &o.Status, &o.CreatedAt, &o.UpdatedAt); err != nil {
+		if err := rows.Scan(&o.ID, &o.ProjectID, &o.Name, &o.Version, &o.VersionNote, &o.Status, &o.CreatedAt, &o.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan test outline: %w", err)
 		}
 
@@ -233,10 +233,10 @@ func (r *TestOutlineRepo) List(ctx context.Context, db *sql.DB) ([]*models.TestO
 // ListVersions — returns all versions of outlines with a given name
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (r *TestOutlineRepo) ListVersions(ctx context.Context, db *sql.DB, name string) ([]*models.TestOutline, error) {
+func (r *TestOutlineRepo) ListVersions(ctx context.Context, db *sql.DB, name string, projectID uuid.UUID) ([]*models.TestOutline, error) {
 	rows, err := db.QueryContext(ctx,
-		`SELECT id, name, version, version_note, status, created_at, updated_at
-		 FROM test_outlines WHERE name = $1 ORDER BY version DESC`, name,
+		`SELECT id, project_id, name, version, version_note, status, created_at, updated_at
+		 FROM test_outlines WHERE name = $1 AND project_id = $2 ORDER BY version DESC`, name, projectID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("query versions: %w", err)
@@ -266,7 +266,7 @@ func (r *TestOutlineRepo) ListVersions(ctx context.Context, db *sql.DB, name str
 // ActivateVersion — sets a specific version to 'active', archives others
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (r *TestOutlineRepo) ActivateVersion(ctx context.Context, db *sql.DB, id uuid.UUID) error {
+func (r *TestOutlineRepo) ActivateVersion(ctx context.Context, db *sql.DB, id uuid.UUID, projectID uuid.UUID) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -276,7 +276,7 @@ func (r *TestOutlineRepo) ActivateVersion(ctx context.Context, db *sql.DB, id uu
 	// Get the outline name inside the transaction to avoid TOCTOU
 	var name string
 	err = tx.QueryRowContext(ctx,
-		`SELECT name FROM test_outlines WHERE id = $1 FOR UPDATE`, id,
+		`SELECT name FROM test_outlines WHERE id = $1 AND project_id = $2 FOR UPDATE`, id, projectID,
 	).Scan(&name)
 	if err == sql.ErrNoRows {
 		return fmt.Errorf("test outline %s: %w", id, sql.ErrNoRows)
@@ -285,10 +285,10 @@ func (r *TestOutlineRepo) ActivateVersion(ctx context.Context, db *sql.DB, id uu
 		return fmt.Errorf("query outline name: %w", err)
 	}
 
-	// Archive all versions with this name
+	// Archive all versions with this name in this project
 	_, err = tx.ExecContext(ctx,
-		`UPDATE test_outlines SET status = $1, updated_at = $2 WHERE name = $3`,
-		models.OutlineStatusArchived, time.Now(), name,
+		`UPDATE test_outlines SET status = $1, updated_at = $2 WHERE name = $3 AND project_id = $4`,
+		models.OutlineStatusArchived, time.Now(), name, projectID,
 	)
 	if err != nil {
 		return fmt.Errorf("archive versions: %w", err)
@@ -296,8 +296,8 @@ func (r *TestOutlineRepo) ActivateVersion(ctx context.Context, db *sql.DB, id uu
 
 	// Activate the selected version
 	_, err = tx.ExecContext(ctx,
-		`UPDATE test_outlines SET status = $1, updated_at = $2 WHERE id = $3`,
-		models.OutlineStatusActive, time.Now(), id,
+		`UPDATE test_outlines SET status = $1, updated_at = $2 WHERE id = $3 AND project_id = $4`,
+		models.OutlineStatusActive, time.Now(), id, projectID,
 	)
 	if err != nil {
 		return fmt.Errorf("activate version: %w", err)
@@ -315,8 +315,8 @@ func (r *TestOutlineRepo) ActivateVersion(ctx context.Context, db *sql.DB, id uu
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Delete removes a test outline and all nested data via CASCADE constraints.
-func (r *TestOutlineRepo) Delete(ctx context.Context, db *sql.DB, id uuid.UUID) error {
-	result, err := db.ExecContext(ctx, `DELETE FROM test_outlines WHERE id = $1`, id)
+func (r *TestOutlineRepo) Delete(ctx context.Context, db *sql.DB, id uuid.UUID, projectID uuid.UUID) error {
+	result, err := db.ExecContext(ctx, `DELETE FROM test_outlines WHERE id = $1 AND project_id = $2`, id, projectID)
 	if err != nil {
 		return fmt.Errorf("delete test outline: %w", err)
 	}

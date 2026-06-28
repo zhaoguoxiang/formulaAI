@@ -33,11 +33,16 @@ type IngredientDistributionItem struct {
 //
 //	FROM formula_step_materials GROUP BY material ORDER BY count DESC
 func (h *AnalysisHandler) IngredientDistribution(c *gin.Context) {
+	projectID := GetProjectID(c)
 	rows, err := h.db.Query(
-		`SELECT material, COUNT(*) as count, AVG(percentage) as avg_percentage
-		 FROM formula_step_materials
-		 GROUP BY material
-		 ORDER BY count DESC`,
+		`SELECT m.material, COUNT(*) as count, AVG(m.percentage) as avg_percentage
+		 FROM formula_step_materials m
+		 JOIN formula_step_material_categories c ON c.id = m.category_id
+		 JOIN formula_steps s ON s.id = c.step_id
+		 JOIN formulas f ON f.id = s.formula_id
+		 WHERE f.project_id = $1
+		 GROUP BY m.material
+		 ORDER BY count DESC`, projectID,
 	)
 	if err != nil {
 		serverError(c, "analysis query failed", err)
@@ -81,13 +86,15 @@ type ComponentModeRatioItem struct {
 //
 //	FROM formulas GROUP BY component_mode
 func (h *AnalysisHandler) ComponentModeRatio(c *gin.Context) {
+	projectID := GetProjectID(c)
 	rows, err := h.db.Query(
 		`SELECT component_mode,
 		        COUNT(*) as count,
 		        ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 2) as percentage
 		 FROM formulas
+		 WHERE project_id = $1
 		 GROUP BY component_mode
-		 ORDER BY count DESC`,
+		 ORDER BY count DESC`, projectID,
 	)
 	if err != nil {
 		serverError(c, "analysis query failed", err)
@@ -129,11 +136,14 @@ type StepCountDistributionItem struct {
 //
 // SQL: Uses a CTE to count steps per formula, then buckets the counts.
 func (h *AnalysisHandler) StepCountDistribution(c *gin.Context) {
+	projectID := GetProjectID(c)
 	rows, err := h.db.Query(
 		`WITH step_counts AS (
-		     SELECT formula_id, COUNT(*) as cnt
-		     FROM formula_steps
-		     GROUP BY formula_id
+		     SELECT s.formula_id, COUNT(*) as cnt
+		     FROM formula_steps s
+		     JOIN formulas f ON f.id = s.formula_id
+		     WHERE f.project_id = $1
+		     GROUP BY s.formula_id
 		 )
 		 SELECT CASE
 		          WHEN cnt BETWEEN 1 AND 2 THEN '1-2'
@@ -143,7 +153,7 @@ func (h *AnalysisHandler) StepCountDistribution(c *gin.Context) {
 		        COUNT(*) as count
 		 FROM step_counts
 		 GROUP BY range
-		 ORDER BY range`,
+		 ORDER BY range`, projectID,
 	)
 	if err != nil {
 		serverError(c, "analysis query failed", err)
@@ -187,12 +197,16 @@ type CategoryMaterialCountItem struct {
 //	JOIN formula_step_materials m ON m.category_id = c.id
 //	GROUP BY c.name ORDER BY material_count DESC
 func (h *AnalysisHandler) DosingMethodStats(c *gin.Context) {
+	projectID := GetProjectID(c)
 	rows, err := h.db.Query(
 		`SELECT c.name, COUNT(m.id) as material_count
 		 FROM formula_step_material_categories c
 		 JOIN formula_step_materials m ON m.category_id = c.id
+		 JOIN formula_steps s ON s.id = c.step_id
+		 JOIN formulas f ON f.id = s.formula_id
+		 WHERE f.project_id = $1
 		 GROUP BY c.name
-		 ORDER BY material_count DESC`,
+		 ORDER BY material_count DESC`, projectID,
 	)
 	if err != nil {
 		serverError(c, "analysis query failed", err)
@@ -219,15 +233,4 @@ func (h *AnalysisHandler) DosingMethodStats(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, results)
-}
-
-// RegisterRoutes registers all analysis endpoints on the given Gin engine.
-func (h *AnalysisHandler) RegisterRoutes(r *gin.Engine) {
-	analysis := r.Group("/api/analysis")
-	{
-		analysis.GET("/ingredient-distribution", h.IngredientDistribution)
-		analysis.GET("/component-mode-ratio", h.ComponentModeRatio)
-		analysis.GET("/step-count-distribution", h.StepCountDistribution)
-		analysis.GET("/dosing-method-stats", h.DosingMethodStats)
-	}
 }

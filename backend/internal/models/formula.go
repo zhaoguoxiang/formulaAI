@@ -34,6 +34,7 @@ const (
 // Formula is the root domain entity representing a complete formula or pre-built material.
 type Formula struct {
 	ID            uuid.UUID     `json:"id"             db:"id"`
+	ProjectID     uuid.UUID     `json:"project_id"     db:"project_id"`
 	Name          string        `json:"name"           db:"name"`
 	Code          string        `json:"code"           db:"code"`
 	ComponentMode ComponentMode `json:"component_mode" db:"component_mode"`

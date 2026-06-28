@@ -1,0 +1,8 @@
+FROM golang:1.26-alpine3.24
+
+RUN apk add --no-cache git curl ca-certificates && \
+    go install github.com/air-verse/air@latest
+ENV PATH="/root/go/bin:$PATH"
+
+WORKDIR /workspace/backend
+CMD ["air", "-c", ".air.toml"]

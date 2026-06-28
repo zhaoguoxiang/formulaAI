@@ -80,6 +80,7 @@ func (h *FormulaListHandler) HandleList(c *gin.Context) {
 	typeFilter := c.Query("formula_type")
 
 	formulas, err := h.repo.List(ctx, h.db, repository.ListOptions{
+		ProjectID:     GetProjectID(c).String(),
 		ComponentMode: modeFilter,
 		FormulaType:   typeFilter,
 	})

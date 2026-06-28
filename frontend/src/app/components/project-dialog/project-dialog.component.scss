@@ -1,0 +1,38 @@
+h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.section {
+  margin: 12px 0;
+
+  h3 {
+    font-size: 14px;
+    font-weight: 500;
+    margin: 0 0 8px 0;
+    opacity: 0.8;
+  }
+}
+
+.empty-hint {
+  color: var(--mat-sys-outline);
+  font-style: italic;
+  font-size: 13px;
+}
+
+.item-desc {
+  opacity: 0.6;
+  font-size: 12px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.create-btn {
+  width: 100%;
+  justify-content: center;
+  gap: 6px;
+}

@@ -15,7 +15,8 @@ RUN python -m venv /opt/venv && \
 # ── run stage ──
 FROM python:3.12-alpine
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN apk add --no-cache curl && \
+    addgroup -S appgroup && adduser -S appuser -G appgroup
 
 COPY --from=builder /opt/venv /opt/venv
 

@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"math/big"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -49,6 +48,8 @@ func (h *FormulaHandler) CreateFormula(c *gin.Context) {
 		})
 		return
 	}
+
+	f.ProjectID = GetProjectID(c)
 
 	// Auto-generate code if empty: FML-YYMMDD-XXXX
 	if f.Code == "" {
@@ -91,6 +92,7 @@ func (h *FormulaHandler) CreateFormula(c *gin.Context) {
 // nested data as a JSON array. Supports ?formula_type=formula|material filter.
 func (h *FormulaHandler) ListFormulas(c *gin.Context) {
 	opts := repository.ListOptions{
+		ProjectID:   GetProjectID(c).String(),
 		FormulaType: c.Query("formula_type"),
 	}
 	formulas, err := h.repo.List(c.Request.Context(), h.db, opts)
@@ -118,7 +120,7 @@ func (h *FormulaHandler) GetFormula(c *gin.Context) {
 		return
 	}
 
-	f, err := h.repo.GetByID(c.Request.Context(), h.db, id)
+	f, err := h.repo.GetByID(c.Request.Context(), h.db, id, GetProjectID(c))
 	if err != nil {
 		if isNotFound(err) {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -166,6 +168,7 @@ func (h *FormulaHandler) UpdateFormula(c *gin.Context) {
 		return
 	}
 	f.ID = id
+	f.ProjectID = GetProjectID(c)
 
 	// Business-level validation
 	if err := services.ValidateAndPrepare(&f); err != nil {
@@ -216,7 +219,7 @@ func (h *FormulaHandler) DeleteFormula(c *gin.Context) {
 		return
 	}
 
-	if err := h.repo.Delete(c.Request.Context(), h.db, id); err != nil {
+	if err := h.repo.Delete(c.Request.Context(), h.db, id, GetProjectID(c)); err != nil {
 		if isNotFound(err) {
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "formula not found",
@@ -249,19 +252,4 @@ func generateFormulaCode() string {
 		}
 	}
 	return fmt.Sprintf("FML-%s-%s", dateStr, string(suffix))
-}
-
-// isNotFound checks whether an error indicates that a requested resource was
-// not found (i.e. sql.ErrNoRows or a "not found" message from the repo).
-func isNotFound(err error) bool {
-	if err == nil {
-		return false
-	}
-	// sql.ErrNoRows
-	if errors.Is(err, sql.ErrNoRows) {
-		return true
-	}
-	// Repository returns "formula <uuid> not found" or wraps sql.ErrNoRows
-	msg := err.Error()
-	return strings.Contains(msg, "not found")
 }

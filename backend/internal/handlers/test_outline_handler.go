@@ -39,6 +39,8 @@ func (h *TestOutlineHandler) CreateTestOutline(c *gin.Context) {
 		return
 	}
 
+	o.ProjectID = GetProjectID(c)
+
 	if err := h.repo.Create(c.Request.Context(), h.db, &o); err != nil {
 		serverError(c, "failed to create test outline", err)
 		return
@@ -52,7 +54,7 @@ func (h *TestOutlineHandler) CreateTestOutline(c *gin.Context) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (h *TestOutlineHandler) ListTestOutlines(c *gin.Context) {
-	outlines, err := h.repo.List(c.Request.Context(), h.db)
+	outlines, err := h.repo.List(c.Request.Context(), h.db, GetProjectID(c))
 	if err != nil {
 		serverError(c, "failed to list test outlines", err)
 		return
@@ -75,7 +77,7 @@ func (h *TestOutlineHandler) GetTestOutline(c *gin.Context) {
 		return
 	}
 
-	o, err := h.repo.GetByID(c.Request.Context(), h.db, id)
+	o, err := h.repo.GetByID(c.Request.Context(), h.db, id, GetProjectID(c))
 	if err != nil {
 		if isNotFound(err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "test outline not found"})
@@ -102,6 +104,8 @@ func (h *TestOutlineHandler) SaveVersion(c *gin.Context) {
 		return
 	}
 
+	o.ProjectID = GetProjectID(c)
+
 	if err := h.repo.SaveVersion(c.Request.Context(), h.db, &o); err != nil {
 		serverError(c, "failed to save new version", err)
 		return
@@ -124,7 +128,7 @@ func (h *TestOutlineHandler) ArchiveTestOutline(c *gin.Context) {
 		return
 	}
 
-	if err := h.repo.Archive(c.Request.Context(), h.db, id); err != nil {
+	if err := h.repo.Archive(c.Request.Context(), h.db, id, GetProjectID(c)); err != nil {
 		if isNotFound(err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "test outline not found"})
 			return
@@ -150,7 +154,7 @@ func (h *TestOutlineHandler) ListVersions(c *gin.Context) {
 		return
 	}
 
-	o, err := h.repo.GetByID(c.Request.Context(), h.db, id)
+	o, err := h.repo.GetByID(c.Request.Context(), h.db, id, GetProjectID(c))
 	if err != nil {
 		if isNotFound(err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "test outline not found"})
@@ -160,7 +164,7 @@ func (h *TestOutlineHandler) ListVersions(c *gin.Context) {
 		return
 	}
 
-	versions, err := h.repo.ListVersions(c.Request.Context(), h.db, o.Name)
+	versions, err := h.repo.ListVersions(c.Request.Context(), h.db, o.Name, GetProjectID(c))
 	if err != nil {
 		serverError(c, "failed to list versions", err)
 		return
@@ -183,7 +187,7 @@ func (h *TestOutlineHandler) ActivateVersion(c *gin.Context) {
 		return
 	}
 
-	if err := h.repo.ActivateVersion(c.Request.Context(), h.db, id); err != nil {
+	if err := h.repo.ActivateVersion(c.Request.Context(), h.db, id, GetProjectID(c)); err != nil {
 		if isNotFound(err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "test outline not found"})
 			return

@@ -1,0 +1,33 @@
+# Dev container with Go 1.26 + Node 24 + Python 3.12
+# for full-stack development of the FormulAI project.
+
+FROM golang:1.26-alpine3.24
+
+# ── System packages ──
+RUN apk add --no-cache \
+    git curl bash make gcc musl-dev \
+    python3 py3-pip python3-dev \
+    postgresql-client nodejs npm
+
+# ── Angular CLI ──
+RUN npm install -g @angular/cli@latest
+
+# ── Go tools ──
+RUN go install github.com/air-verse/air@latest && \
+    go install golang.org/x/tools/gopls@latest && \
+    go install golang.org/x/tools/cmd/goimports@latest && \
+    go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+# ── Python virtualenv with LangGraph deps ──
+RUN python3 -m venv /opt/langgraph-venv
+ENV PATH="/opt/langgraph-venv/bin:/root/go/bin:$PATH"
+
+COPY langgraph-service/pyproject.toml /tmp/langgraph/
+RUN /opt/langgraph-venv/bin/pip install --no-cache-dir /tmp/langgraph/
+
+# ── Pre-download Go modules ──
+COPY backend/go.mod backend/go.sum /tmp/backend/
+RUN cd /tmp/backend && go mod download
+
+WORKDIR /workspace
+CMD ["sleep", "infinity"]

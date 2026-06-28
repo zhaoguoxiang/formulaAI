@@ -1,0 +1,82 @@
+services:
+  # ── Dev container: VS Code attaches here ──
+  # Includes Go + Node + Python for full-stack development.
+  # All source code is mounted from the host for live editing.
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: formula-dev
+    volumes:
+      - ..:/workspace:cached
+      - go-mod-cache:/go/pkg/mod
+      - node-modules-cache:/workspace/frontend/node_modules
+      - python-venv:/opt/langgraph-venv
+      - vscode-extensions:/root/.vscode-server
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-formula}
+      - DB_PASSWORD=${DB_PASSWORD:-changeme}
+      - DB_NAME=${DB_NAME:-formula_ai}
+      - DB_SSLMODE=disable
+      - GOPROXY=https://goproxy.cn,direct
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o}
+    command: sleep infinity
+    networks:
+      - formula-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Override backend: hot reload with air ──
+  # Only starts with: docker compose --profile full-dev up
+  backend:
+    profiles:
+      - full-dev
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile.backend-dev
+    container_name: formula-backend-dev
+    volumes:
+      - ..:/workspace:cached
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-formula}
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      DB_NAME: ${DB_NAME:-formula_ai}
+      DB_SSLMODE: disable
+      SERVER_PORT: "8080"
+      CORS_ORIGINS: "*"
+      MIGRATIONS_PATH: /workspace/backend/migrations
+
+  # ── Override langgraph: hot reload with uvicorn --reload ──
+  # Only starts with: docker compose --profile full-dev up
+  langgraph:
+    profiles:
+      - full-dev
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile.langgraph-dev
+    container_name: formula-langgraph-dev
+    volumes:
+      - ..:/workspace:cached
+    ports:
+      - "5050:5050"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?err}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o}
+      GO_BACKEND_URL: http://backend:8080
+      PORT: "5050"
+
+volumes:
+  go-mod-cache:
+  node-modules-cache:
+  python-venv:
+  vscode-extensions:

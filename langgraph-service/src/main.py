@@ -34,7 +34,10 @@ async def chat(request: Request):
     """SSE streaming chat endpoint.
 
     Request body (JSON):
-        {"messages": [{"role":"user","content":"分析填料对硬度的影响"}]}
+        {
+            "messages": [{"role":"user","content":"分析填料对硬度的影响"}],
+            "project_id": "uuid-of-current-workspace"
+        }
 
     Response: SSE stream with events matching the Angular chat-panel protocol.
     """
@@ -53,10 +56,12 @@ async def chat(request: Request):
             content={"error": "messages array is required"},
         )
 
-    logger.info("chat request received, %d messages", len(messages))
+    project_id = body.get("project_id", "")
+
+    logger.info("chat request received, %d messages, project=%s", len(messages), project_id or "none")
 
     async def event_generator():
-        agent_stream = run_agent_stream(messages)
+        agent_stream = run_agent_stream(messages, project_id=project_id)
         async for sse_line in format_sse_stream(agent_stream):
             yield sse_line
 

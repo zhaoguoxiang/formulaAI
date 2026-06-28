@@ -13,6 +13,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 import { MarkdownPipe } from '../../utils/markdown.pipe';
+import { ProjectStateService } from '../../services/project-state.service';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'tool';
@@ -54,6 +55,7 @@ const SUGGESTIONS = [
 export class ChatPanelComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly projectState = inject(ProjectStateService);
 
   // Chat URL: in production, nginx proxies /api/chat → langgraph service.
   // In development (ng serve), set up a proxy in proxy.conf.json or use the
@@ -91,11 +93,16 @@ export class ChatPanelComponent {
     this.analysisId.set(null);
     this.scheduleScroll();
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       messages: this.messages()
         .filter((m) => m.role !== 'tool')
         .map((m) => ({ role: m.role, content: m.content })),
     };
+
+    const projectId = this.projectState.currentProjectId();
+    if (projectId) {
+      payload['project_id'] = projectId;
+    }
 
     this.abortController = new AbortController();
     this.destroyRef.onDestroy(() => this.abortController?.abort());
@@ -156,9 +163,7 @@ export class ChatPanelComponent {
     this.userScrolledUp.set(!atBottom);
   }
 
-  private async doStreamFetch(payload: {
-    messages: { role: string; content: string }[];
-  }): Promise<void> {
+  private async doStreamFetch(payload: Record<string, unknown>): Promise<void> {
     try {
       const response = await fetch(this.chatUrl, {
         method: 'POST',

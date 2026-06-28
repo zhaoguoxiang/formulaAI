@@ -32,6 +32,8 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB) {
 	// ── Formula handlers ──
 	formulaHandler := NewFormulaHandler(db)
 	listHandler := NewFormulaListHandler(db)
+	testOutlineHandler := NewTestOutlineHandler(db)
+	analysisHandler := NewAnalysisHandler(db)
 
 	api := router.Group("/api")
 	{
@@ -41,33 +43,50 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB) {
 
 		api.POST("/upload", HandleUpload)
 
-		formulas := api.Group("/formulas")
+		// ── Project routes (no project_id header required) ──
+		projectHandler := NewProjectHandler(db)
+		projects := api.Group("/projects")
 		{
-			formulas.POST("", formulaHandler.CreateFormula)
-			formulas.GET("", formulaHandler.ListFormulas)
-			formulas.GET("/list", listHandler.HandleList)
-			formulas.GET("/:id", formulaHandler.GetFormula)
-			formulas.PUT("/:id", formulaHandler.UpdateFormula)
-			formulas.DELETE("/:id", formulaHandler.DeleteFormula)
+			projects.POST("", projectHandler.CreateProject)
+			projects.GET("", projectHandler.ListProjects)
+			projects.GET("/:id", projectHandler.GetProject)
+			projects.PUT("/:id", projectHandler.UpdateProject)
+			projects.DELETE("/:id", projectHandler.DeleteProject)
 		}
 
-		// ── Test Outline handlers ──
-		testOutlineHandler := NewTestOutlineHandler(db)
-
-		testOutlines := api.Group("/test-outlines")
+		// ── Scoped routes (X-Project-Id header required) ──
+		scoped := api.Group("")
+		scoped.Use(ProjectMiddleware())
 		{
-			testOutlines.POST("", testOutlineHandler.CreateTestOutline)
-			testOutlines.GET("", testOutlineHandler.ListTestOutlines)
-			testOutlines.GET("/:id", testOutlineHandler.GetTestOutline)
-			testOutlines.PUT("/:id", testOutlineHandler.SaveVersion)
-			testOutlines.PUT("/:id/archive", testOutlineHandler.ArchiveTestOutline)
-			testOutlines.GET("/:id/versions", testOutlineHandler.ListVersions)
-			testOutlines.PUT("/:id/activate", testOutlineHandler.ActivateVersion)
-		}
+			formulas := scoped.Group("/formulas")
+			{
+				formulas.POST("", formulaHandler.CreateFormula)
+				formulas.GET("", formulaHandler.ListFormulas)
+				formulas.GET("/list", listHandler.HandleList)
+				formulas.GET("/:id", formulaHandler.GetFormula)
+				formulas.PUT("/:id", formulaHandler.UpdateFormula)
+				formulas.DELETE("/:id", formulaHandler.DeleteFormula)
+			}
 
-		// ── Analysis handlers ──
-		analysisHandler := NewAnalysisHandler(db)
-		analysisHandler.RegisterRoutes(router)
+			testOutlines := scoped.Group("/test-outlines")
+			{
+				testOutlines.POST("", testOutlineHandler.CreateTestOutline)
+				testOutlines.GET("", testOutlineHandler.ListTestOutlines)
+				testOutlines.GET("/:id", testOutlineHandler.GetTestOutline)
+				testOutlines.PUT("/:id", testOutlineHandler.SaveVersion)
+				testOutlines.PUT("/:id/archive", testOutlineHandler.ArchiveTestOutline)
+				testOutlines.GET("/:id/versions", testOutlineHandler.ListVersions)
+				testOutlines.PUT("/:id/activate", testOutlineHandler.ActivateVersion)
+			}
+
+			analysis := scoped.Group("/analysis")
+			{
+				analysis.GET("/ingredient-distribution", analysisHandler.IngredientDistribution)
+				analysis.GET("/component-mode-ratio", analysisHandler.ComponentModeRatio)
+				analysis.GET("/step-count-distribution", analysisHandler.StepCountDistribution)
+				analysis.GET("/dosing-method-stats", analysisHandler.DosingMethodStats)
+			}
+		}
 	}
 
 	// ── Static file serving for uploaded images ──

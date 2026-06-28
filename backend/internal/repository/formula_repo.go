@@ -13,6 +13,7 @@ import (
 )
 
 type ListOptions struct {
+	ProjectID     string
 	ComponentMode string
 	FormulaType   string
 	Limit         int
@@ -47,9 +48,9 @@ func (r *FormulaRepo) Create(ctx context.Context, db *sql.DB, f *models.Formula)
 		f.Labels = []string{}
 	}
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO formulas (id, name, code, component_mode, status, formula_type, labels, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-		f.ID, f.Name, f.Code, string(f.ComponentMode), string(f.Status), string(f.FormulaType), pq.Array(f.Labels), f.CreatedAt, f.UpdatedAt,
+		`INSERT INTO formulas (id, project_id, name, code, component_mode, status, formula_type, labels, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		f.ID, f.ProjectID, f.Name, f.Code, string(f.ComponentMode), string(f.Status), string(f.FormulaType), pq.Array(f.Labels), f.CreatedAt, f.UpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("insert formula: %w", err)
@@ -150,13 +151,13 @@ func (r *FormulaRepo) Create(ctx context.Context, db *sql.DB, f *models.Formula)
 	return nil
 }
 
-func (r *FormulaRepo) GetByID(ctx context.Context, db *sql.DB, id uuid.UUID) (*models.Formula, error) {
+func (r *FormulaRepo) GetByID(ctx context.Context, db *sql.DB, id uuid.UUID, projectID uuid.UUID) (*models.Formula, error) {
 	f := &models.Formula{}
 	var componentMode, status, formulaType string
 	err := db.QueryRowContext(ctx,
-		`SELECT id, name, code, component_mode, status, formula_type, labels, created_at, updated_at
-		 FROM formulas WHERE id = $1`, id,
-	).Scan(&f.ID, &f.Name, &f.Code, &componentMode, &status, &formulaType, pq.Array(&f.Labels), &f.CreatedAt, &f.UpdatedAt)
+		`SELECT id, project_id, name, code, component_mode, status, formula_type, labels, created_at, updated_at
+		 FROM formulas WHERE id = $1 AND project_id = $2`, id, projectID,
+	).Scan(&f.ID, &f.ProjectID, &f.Name, &f.Code, &componentMode, &status, &formulaType, pq.Array(&f.Labels), &f.CreatedAt, &f.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("formula %s: %w", id, sql.ErrNoRows)
 	}
@@ -190,6 +191,11 @@ func (r *FormulaRepo) List(ctx context.Context, db *sql.DB, opts ListOptions) ([
 	var conditions []string
 	argIdx := 0
 
+	if opts.ProjectID != "" {
+		argIdx++
+		conditions = append(conditions, fmt.Sprintf("project_id = $%d", argIdx))
+		args = append(args, opts.ProjectID)
+	}
 	if opts.ComponentMode != "" {
 		argIdx++
 		conditions = append(conditions, fmt.Sprintf("component_mode = $%d", argIdx))
@@ -209,7 +215,7 @@ func (r *FormulaRepo) List(ctx context.Context, db *sql.DB, opts ListOptions) ([
 		}
 	}
 
-	query := `SELECT id, name, code, component_mode, status, formula_type, labels, created_at, updated_at
+	query := `SELECT id, project_id, name, code, component_mode, status, formula_type, labels, created_at, updated_at
 		FROM formulas` + where + ` ORDER BY created_at DESC`
 
 	if opts.Limit > 0 {
@@ -234,7 +240,7 @@ func (r *FormulaRepo) List(ctx context.Context, db *sql.DB, opts ListOptions) ([
 	for rows.Next() {
 		f := &models.Formula{}
 		var componentMode, status, formulaType string
-		if err := rows.Scan(&f.ID, &f.Name, &f.Code, &componentMode, &status, &formulaType, pq.Array(&f.Labels), &f.CreatedAt, &f.UpdatedAt); err != nil {
+		if err := rows.Scan(&f.ID, &f.ProjectID, &f.Name, &f.Code, &componentMode, &status, &formulaType, pq.Array(&f.Labels), &f.CreatedAt, &f.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan formula: %w", err)
 		}
 		f.ComponentMode = models.ComponentMode(componentMode)
@@ -288,7 +294,7 @@ func (r *FormulaRepo) Update(ctx context.Context, db *sql.DB, f *models.Formula)
 	// Lock the formula row to prevent concurrent updates
 	var lockedID uuid.UUID
 	err = tx.QueryRowContext(ctx,
-		`SELECT id FROM formulas WHERE id = $1 FOR UPDATE`, f.ID,
+		`SELECT id FROM formulas WHERE id = $1 AND project_id = $2 FOR UPDATE`, f.ID, f.ProjectID,
 	).Scan(&lockedID)
 	if err == sql.ErrNoRows {
 		return fmt.Errorf("formula %s not found", f.ID)
@@ -298,8 +304,8 @@ func (r *FormulaRepo) Update(ctx context.Context, db *sql.DB, f *models.Formula)
 	}
 
 	result, err := tx.ExecContext(ctx,
-		`UPDATE formulas SET name=$1, code=$2, component_mode=$3, status=$4, formula_type=$5, labels=$6, updated_at=$7 WHERE id=$8`,
-		f.Name, f.Code, string(f.ComponentMode), string(f.Status), string(f.FormulaType), pq.Array(f.Labels), f.UpdatedAt, f.ID,
+		`UPDATE formulas SET name=$1, code=$2, component_mode=$3, status=$4, formula_type=$5, labels=$6, updated_at=$7 WHERE id=$8 AND project_id=$9`,
+		f.Name, f.Code, string(f.ComponentMode), string(f.Status), string(f.FormulaType), pq.Array(f.Labels), f.UpdatedAt, f.ID, f.ProjectID,
 	)
 	if err != nil {
 		return fmt.Errorf("update formula: %w", err)
@@ -410,8 +416,8 @@ func (r *FormulaRepo) Update(ctx context.Context, db *sql.DB, f *models.Formula)
 	return nil
 }
 
-func (r *FormulaRepo) Delete(ctx context.Context, db *sql.DB, id uuid.UUID) error {
-	result, err := db.ExecContext(ctx, `DELETE FROM formulas WHERE id = $1`, id)
+func (r *FormulaRepo) Delete(ctx context.Context, db *sql.DB, id uuid.UUID, projectID uuid.UUID) error {
+	result, err := db.ExecContext(ctx, `DELETE FROM formulas WHERE id = $1 AND project_id = $2`, id, projectID)
 	if err != nil {
 		return fmt.Errorf("delete formula: %w", err)
 	}

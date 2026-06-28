@@ -35,7 +35,8 @@ frontend/server
 
 # ═══ IDE & Editors ═══
 .idea/
-.vscode/
+.vscode/*
+!.vscode/settings.json
 .history/
 *.swp
 *.swo

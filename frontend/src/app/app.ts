@@ -6,12 +6,16 @@ import { MatCard, MatCardContent } from '@angular/material/card';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialog } from '@angular/material/dialog';
 
 import { FormulaAnalysisComponent } from './components/formula-analysis/formula-analysis.component';
 import { FormulaListComponent } from './components/formula-list/formula-list.component';
 import { PrebuiltMaterialComponent } from './components/prebuilt-material/prebuilt-material.component';
 import { TestOutlineComponent } from './components/test-outline/test-outline.component';
 import { ChatPanelComponent } from './components/chat-panel/chat-panel.component';
+import { ProjectSelectorComponent } from './components/project-selector/project-selector.component';
+import { ProjectDialogComponent } from './components/project-dialog/project-dialog.component';
+import { ProjectStateService } from './services/project-state.service';
 
 @Component({
   selector: 'app-root',
@@ -30,6 +34,7 @@ import { ChatPanelComponent } from './components/chat-panel/chat-panel.component
     FormulaListComponent,
     TestOutlineComponent,
     ChatPanelComponent,
+    ProjectSelectorComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -37,9 +42,18 @@ import { ChatPanelComponent } from './components/chat-panel/chat-panel.component
 })
 export class App {
   private readonly renderer = inject(Renderer2);
+  private readonly dialog = inject(MatDialog);
+  readonly projectState = inject(ProjectStateService);
 
   readonly sidebarCollapsed = signal(true);
   readonly isDark = signal(false);
+
+  openCreateProjectDialog(): void {
+    this.dialog.open(ProjectDialogComponent, {
+      width: '520px',
+      maxHeight: '80vh',
+    });
+  }
 
   constructor() {
     let stored: string | null = null;

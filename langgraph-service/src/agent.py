@@ -59,8 +59,13 @@ def create_agent() -> Any:
 
 async def run_agent_stream(
     messages: list[dict[str, str]],
+    project_id: str = "",
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Run the agent on a conversation and yield structured chunks.
+
+    Args:
+        messages: Chat messages from the frontend.
+        project_id: Current workspace UUID for scoping tool calls.
 
     Chunk format:
         {"type": "tool_call", "name": "get_ingredient_distribution"}
@@ -73,14 +78,18 @@ async def run_agent_stream(
     analysis_id = str(uuid.uuid4())
 
     # Build LangChain message format from the chat-panel messages
-    # The frontend sends: [{"role":"user","content":"..."}, {"role":"assistant","content":"..."}]
-    # We only send the last user message (the agent has no persistent memory across requests)
     user_messages = [m for m in messages if m.get("role") == "user"]
     if not user_messages:
         yield {"type": "error", "message": "没有收到用户消息"}
         return
 
     last_user = user_messages[-1]["content"]
+
+    # Inject project_id into the user message so tools can use it
+    if project_id:
+        last_user = (
+            f"[当前工作空间ID: {project_id}]\n\n{last_user}"
+        )
 
     tool_rounds = 0
     try:

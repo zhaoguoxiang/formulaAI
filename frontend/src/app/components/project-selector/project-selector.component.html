@@ -1,0 +1,20 @@
+<div class="project-selector">
+  <mat-icon class="selector-icon">workspaces</mat-icon>
+  <mat-select
+    [value]="projectState.currentProjectId()"
+    (selectionChange)="onProjectChange($event.value)"
+    placeholder="选择工作空间"
+    panelClass="project-select-panel"
+  >
+    @for (p of projectState.projects(); track p.id) {
+      <mat-option [value]="p.id">
+        <span class="project-option-name">{{ p.name }}</span>
+      </mat-option>
+    }
+    <mat-divider></mat-divider>
+    <button mat-button class="manage-btn" (click)="openManageDialog(); $event.stopPropagation()">
+      <mat-icon>settings</mat-icon>
+      管理工作空间
+    </button>
+  </mat-select>
+</div>

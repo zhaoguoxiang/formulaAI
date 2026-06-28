@@ -1,0 +1,59 @@
+<h2 mat-dialog-title>
+  <mat-icon>workspaces</mat-icon>
+  管理工作空间
+</h2>
+
+<mat-dialog-content>
+  <!-- Existing projects list -->
+  <div class="section">
+    <h3>现有工作空间</h3>
+    @if (projectState.projects().length === 0) {
+      <p class="empty-hint">暂无工作空间，请创建一个</p>
+    } @else {
+      <mat-list>
+        @for (p of projectState.projects(); track p.id) {
+          <mat-list-item>
+            <mat-icon matListItemIcon>folder</mat-icon>
+            <div matListItemTitle>{{ p.name }}</div>
+            <div matListItemLine class="item-desc">{{ p.description || '无描述' }}</div>
+            <button mat-icon-button
+                    matListItemMeta
+                    (click)="deleteProject(p)"
+                    matTooltip="删除此工作空间及其所有数据"
+                    aria-label="删除工作空间">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </mat-list-item>
+        }
+      </mat-list>
+    }
+  </div>
+
+  <mat-divider></mat-divider>
+
+  <!-- Create new project -->
+  <div class="section">
+    <h3>创建新工作空间</h3>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>名称</mat-label>
+      <input matInput [(ngModel)]="newName" placeholder="例如：项目A、客户B" maxlength="255" />
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>描述（可选）</mat-label>
+      <textarea matInput [(ngModel)]="newDescription" placeholder="简要描述此工作空间的用途" rows="2" maxlength="500"></textarea>
+    </mat-form-field>
+    <button mat-flat-button
+            class="create-btn"
+            [disabled]="!newName.trim() || creating()"
+            (click)="createProject()">
+      @if (creating()) {
+        <mat-spinner diameter="18"></mat-spinner>
+      }
+      创建
+    </button>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()">关闭</button>
+</mat-dialog-actions>

@@ -10,6 +10,7 @@ import (
 // Version numbers auto-increment on each publish. Status tracks the lifecycle.
 type TestOutline struct {
 	ID          uuid.UUID  `json:"id"          db:"id"`
+	ProjectID   uuid.UUID  `json:"project_id"  db:"project_id"`
 	Name        string     `json:"name"        db:"name"`
 	Version     int        `json:"version"     db:"version"`
 	VersionNote string     `json:"version_note" db:"version_note"`
