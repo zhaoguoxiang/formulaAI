@@ -1,14 +1,14 @@
 # FormulAI — 配方 AI 辅助系统
 
-基于 Material Design 3 的配方管理系统，支持配方矩阵展示、数据分析看板、配方编辑器以及 AI 配方助手。
+基于 Material Design 3 的配方管理系统，支持配方矩阵展示、数据分析看板、配方编辑器以及 AI 配方助手（LangGraph Agent）。
 
 ## 技术栈
 
 | 层 | 技术 |
 |---|------|
-| 前端 | Angular 21 + Angular Material 3 (M3) |
-| 后端 API | Go |
-| AI 引擎 | CopilotKit (OpenAI 兼容) |
+| 前端 | Angular 22 + Angular Material 3 (M3) |
+| 后端 API | Go + Gin |
+| AI 引擎 | LangChain + LangGraph (OpenAI 兼容) |
 | 数据库 | PostgreSQL 16 |
 | 部署 | Docker Compose |
 
@@ -42,8 +42,11 @@ DB_PASSWORD=changeme
 DB_NAME=formula_ai
 DB_PORT=5432
 
-# OpenAI API Key（启用 AI 助手必须）
+# OpenAI API Key（启用 AI 助手必须，支持任意 OpenAI 兼容接口）
 OPENAI_API_KEY=sk-your-key-here
+# 可选：自定义模型和接口地址
+# OPENAI_BASE_URL=https://api.openai.com/v1
+# LLM_MODEL=gpt-4o
 ```
 
 > **注意**：不填 `OPENAI_API_KEY` 不影响页面访问，但 AI 配方助手聊天功能将不可用。后端和前端可正常运行。
@@ -68,8 +71,8 @@ docker compose ps
 NAME                 STATUS
 formula-postgres     Up (healthy)
 formula-backend      Up (healthy)
+formula-langgraph    Up (healthy)
 formula-frontend     Up (healthy)
-formula-copilotkit   Up (healthy)
 ```
 
 ### 5. 访问
@@ -78,7 +81,7 @@ formula-copilotkit   Up (healthy)
 |------|------|
 | 前端页面 | http://localhost:8081 |
 | 后端 API | http://localhost:8080 |
-| CopilotKit | http://localhost:3001 |
+| LangGraph Agent | http://localhost:5050 |
 
 ## 常用命令
 
@@ -122,9 +125,10 @@ DB_PORT=5432          # 默认
 
 数据库首次启动会自动建表，但配方数据需要手动录入。使用"新增"标签页创建配方。
 
-**Q: CopilotKit 连接失败？**
+**Q: AI 助手连接失败？**
 
 确认 `.env` 中 `OPENAI_API_KEY` 已正确配置，且 API Key 有可用额度。
+可通过 `OPENAI_BASE_URL` 和 `LLM_MODEL` 使用任意 OpenAI 兼容接口。
 
 **Q: 端口冲突？**
 
@@ -142,7 +146,7 @@ DB_PORT=5432          # 默认
 │   ├── cmd/server/
 │   ├── migrations/               # 数据库迁移
 │   └── Dockerfile
-├── copilotkit-runtime/  # AI CopilotKit 运行时
+├── langgraph-service/   # AI LangGraph Agent 服务
 │   └── Dockerfile
 ├── docker-compose.yml   # 容器编排
 └── .env.example         # 环境变量模板

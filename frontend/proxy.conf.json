@@ -1,4 +1,9 @@
 {
+  "/api/chat": {
+    "target": "http://localhost:5050",
+    "secure": false,
+    "ws": true
+  },
   "/api": {
     "target": "http://localhost:8080",
     "secure": false

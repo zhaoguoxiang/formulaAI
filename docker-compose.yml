@@ -79,6 +79,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+      langgraph:
+        condition: service_healthy
     networks:
       - formula-network
     restart: unless-stopped
@@ -88,6 +90,36 @@ services:
           memory: 128M
         reservations:
           memory: 64M
+
+  langgraph:
+    build:
+      context: ./langgraph-service
+      dockerfile: Dockerfile
+    container_name: formula-langgraph
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?err}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o}
+      GO_BACKEND_URL: http://backend:8080
+      PORT: "5050"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5050/api/health | grep -q '\"status\":\"ok\"'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - formula-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
 volumes:
   pgdata:

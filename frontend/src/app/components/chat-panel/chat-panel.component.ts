@@ -54,9 +54,11 @@ const SUGGESTIONS = [
 export class ChatPanelComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly snackBar = inject(MatSnackBar);
-  // TODO: Make this configurable via environment or proxy for production deployments.
-  // Currently points to local CopilotKit Python runtime.
-  private readonly pythonChatUrl = 'http://localhost:5050/api/chat';
+
+  // Chat URL: in production, nginx proxies /api/chat → langgraph service.
+  // In development (ng serve), set up a proxy in proxy.conf.json or use the
+  // full URL directly (e.g. http://localhost:5050/api/chat).
+  private readonly chatUrl = '/api/chat';
 
   readonly messages = signal<ChatMessage[]>([]);
   inputText = '';
@@ -158,7 +160,7 @@ export class ChatPanelComponent {
     messages: { role: string; content: string }[];
   }): Promise<void> {
     try {
-      const response = await fetch(this.pythonChatUrl, {
+      const response = await fetch(this.chatUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -270,7 +272,7 @@ export class ChatPanelComponent {
         ...msgs,
         {
           role: 'assistant',
-          content: '连接分析服务失败，请确认 Python 侧车已启动。',
+          content: '连接分析服务失败，请确认 LangGraph 服务已启动。',
           timestamp: Date.now(),
         },
       ]);
